@@ -173,6 +173,8 @@ class Player:
                 # 普通跟牌逻辑
                 plays.extend(self._get_follow_plays(required_count, value_groups, min_required_value))
         
+        # 过滤掉空列表，确保返回的都是有效的出牌方案
+        plays = [play for play in plays if play]
         return plays
     
     def _get_follow_plays(self, required_count, value_groups, min_required_value):
@@ -186,7 +188,7 @@ class Player:
         if min_required_value is not None:
             # 优先尝试大于min_required_value的相同点数牌
             for value in sorted(value_groups.keys(), reverse=True):
-                if value > min_required_value:
+                if value >= min_required_value:
                     cards = value_groups[value]
                     if len(cards) >= required_count:
                         plays.append(cards[:required_count])
@@ -333,6 +335,8 @@ class Player:
         pair_count = sum(1 for count in value_counts.values() if count >= 2)
         
         # 计算最大牌值
+        if not cards:  # 防护空列表
+            return (0, 0)
         max_value = max(card.value for card in cards)
         
         # 优先级：配对数量越多越好，最大牌值越小越好
@@ -353,6 +357,8 @@ class Player:
         is_same_value = len(values) == 1
         
         # 计算最小牌值
+        if not cards:  # 防护空列表
+            return (0, 0)
         min_value = min(card.value for card in cards)
         
         # 优先级：相同点数优于混合牌，牌值越小越好
