@@ -9,7 +9,7 @@ from typing import List, Dict, Tuple, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from abstract_card import AbstractCard
-    from abstract_player import AbstractPlayer
+    from abstract_player import Player
     from abstract_factory import AbstractGameFactory
 
 
@@ -138,7 +138,7 @@ class GameCore:
                 max_value = max(max_value, max(card.value for card in cards))
         return max_value
     
-    def validate_play(self, player: 'AbstractPlayer', selected_cards: List['AbstractCard'], requirements: Dict) -> bool:
+    def validate_play(self, player: 'Player', selected_cards: List['AbstractCard'], requirements: Dict) -> bool:
         """验证出牌是否有效"""
         if not selected_cards:
             return False
@@ -157,7 +157,7 @@ class GameCore:
             return False
         return len(set(card.value for card in selected_cards)) <= 1
     
-    def _validate_follower_play(self, player: 'AbstractPlayer', selected_cards: List['AbstractCard'], requirements: Dict) -> bool:
+    def _validate_follower_play(self, player: 'Player', selected_cards: List['AbstractCard'], requirements: Dict) -> bool:
         """验证后续出牌者的出牌"""
         if len(selected_cards) != requirements['required_count']:
             return False
@@ -171,7 +171,7 @@ class GameCore:
         
         return any(set(play) == set(selected_cards) for play in available_plays)
     
-    def execute_play(self, player: 'AbstractPlayer', selected_cards: List['AbstractCard']) -> bool:
+    def execute_play(self, player: 'Player', selected_cards: List['AbstractCard']) -> bool:
         """
         执行出牌
         
@@ -194,7 +194,7 @@ class GameCore:
             print(f"出牌执行失败: {e}")
             return False
     
-    def determine_winner(self, round_plays: Dict['AbstractPlayer', List['AbstractCard']]) -> Optional['AbstractPlayer']:
+    def determine_winner(self, round_plays: Dict['Player', List['AbstractCard']]) -> Optional['Player']:
         """
         判断回合胜者
         当有多个玩家出相同最大点数时，先出牌者获胜
@@ -226,7 +226,7 @@ class GameCore:
         else:
             return self._determine_winner_normal(valid_plays)
     
-    def _determine_winner_with_same_card_priority(self, valid_plays: Dict['AbstractPlayer', List['AbstractCard']]) -> Optional['AbstractPlayer']:
+    def _determine_winner_with_same_card_priority(self, valid_plays: Dict['Player', List['AbstractCard']]) -> Optional['Player']:
         """
         当领牌者出多张相同牌时的胜负判定
         优先级：相同牌 > 混合牌，相同优先级内按点数和出牌顺序
@@ -263,7 +263,7 @@ class GameCore:
         
         return None
     
-    def _determine_winner_normal(self, valid_plays: Dict['AbstractPlayer', List['AbstractCard']]) -> Optional['AbstractPlayer']:
+    def _determine_winner_normal(self, valid_plays: Dict['Player', List['AbstractCard']]) -> Optional['Player']:
         """
         正常的胜负判定（领牌者未出多张相同牌时）
         """
@@ -287,7 +287,7 @@ class GameCore:
         
         return winner
     
-    def end_round(self, winner: 'AbstractPlayer', round_plays: Dict['AbstractPlayer', List['AbstractCard']]):
+    def end_round(self, winner: 'Player', round_plays: Dict['Player', List['AbstractCard']]):
         """结束回合，处理获得的牌和分数"""
         # 胜者获得自己出的牌
         winner_cards = []

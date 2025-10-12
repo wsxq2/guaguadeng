@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from abstract_card import AbstractCard
 
 
-class AbstractPlayer(ABC):
+class Player(ABC):
     """
     抽象玩家基类
     定义所有玩家必须实现的接口
