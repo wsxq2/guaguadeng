@@ -4,6 +4,7 @@
 """
 
 import sys
+import logging
 from typing import List, Dict, Optional
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                                QHBoxLayout, QGridLayout, QPushButton, QLabel, 
@@ -14,6 +15,45 @@ from PySide6.QtGui import QFont, QPalette, QColor, QFontDatabase
 
 from game_gui_manager import GameGUIManager
 from card import Card
+
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('game_gui.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+
+# 配置常量
+class GUIConfig:
+    # 窗口尺寸
+    WINDOW_WIDTH = 1200
+    WINDOW_HEIGHT = 800
+    
+    # 卡牌尺寸
+    CARD_WIDTH = 60
+    CARD_HEIGHT = 80
+    
+    # 时间延迟
+    AI_THINKING_DELAY = 1000  # AI思考时间 (毫秒)
+    TURN_TRANSITION_DELAY = 500  # 回合转换延迟 (毫秒)
+    
+    # 布局尺寸
+    PLAYERS_PANEL_WIDTH = 250
+    CONTROL_PANEL_WIDTH = 200
+    HAND_AREA_HEIGHT = 120
+    PLAY_AREA_SIZE = (150, 100)
+    
+    # 字体配置
+    TITLE_FONT_SIZE = 20
+    SUBTITLE_FONT_SIZE = 14
+    CARD_SUIT_FONT_SIZE = 12
+    CARD_VALUE_FONT_SIZE = 14
 
 
 class CardWidget(QFrame):
@@ -30,7 +70,7 @@ class CardWidget(QFrame):
         
     def setup_ui(self):
         """设置UI"""
-        self.setFixedSize(60, 80)
+        self.setFixedSize(GUIConfig.CARD_WIDTH, GUIConfig.CARD_HEIGHT)
         self.setFrameStyle(QFrame.Box)
         self.setLineWidth(2)
         
@@ -41,7 +81,7 @@ class CardWidget(QFrame):
         suit_label = QLabel(self.card.suit)
         suit_label.setAlignment(Qt.AlignCenter)
         suit_font = QFont()
-        suit_font.setPointSize(12)
+        suit_font.setPointSize(GUIConfig.CARD_SUIT_FONT_SIZE)
         suit_font.setBold(True)
         suit_label.setFont(suit_font)
         
@@ -55,7 +95,7 @@ class CardWidget(QFrame):
         value_label = QLabel(str(self.card.value))
         value_label.setAlignment(Qt.AlignCenter)
         value_font = QFont()
-        value_font.setPointSize(14)
+        value_font.setPointSize(GUIConfig.CARD_VALUE_FONT_SIZE)
         value_font.setBold(True)
         value_label.setFont(value_font)
         
@@ -316,7 +356,7 @@ class GameGUI(QMainWindow):
     def setup_ui(self):
         """设置UI"""
         self.setWindowTitle("刮刮登纸牌游戏")
-        self.setFixedSize(1200, 800)
+        self.setFixedSize(GUIConfig.WINDOW_WIDTH, GUIConfig.WINDOW_HEIGHT)
         
         # 中央组件
         central_widget = QWidget()
@@ -331,7 +371,7 @@ class GameGUI(QMainWindow):
         title.setAlignment(Qt.AlignCenter)
         # 使用支持Unicode的字体
         title_font = QFont('Noto Sans Mono')
-        title_font.setPointSize(20)
+        title_font.setPointSize(GUIConfig.TITLE_FONT_SIZE)
         title_font.setBold(True)
         title.setFont(title_font)
         main_layout.addWidget(title)
@@ -429,28 +469,37 @@ class GameGUI(QMainWindow):
         
     def start_new_game(self):
         """开始新游戏"""
-        self.game_manager.start_new_game()
-        
-        self.current_leader_index = self.game_manager.current_leader_index
-        self.current_player_index = self.current_leader_index
-        self.waiting_for_human_input = False
-        
-        self.update_players_display()
-        self.update_hand_cards()
-        self.play_area.clear_all_plays()
-        
-        players_info = self.game_manager.get_players_info()
-        dealer_name = None
-        for info in players_info:
-            if info.get('is_dealer', False):
-                dealer_name = info['name']
-                break
-        
-        self.status_label.setText(f"🎯 庄家: {dealer_name}\n新游戏开始！")
-        self.round_info.clear()
-        
-        # 开始第一回合
-        self.start_new_round()
+        try:
+            self.game_manager.start_new_game()
+            
+            self.current_leader_index = self.game_manager.current_leader_index
+            self.current_player_index = self.current_leader_index
+            self.waiting_for_human_input = False
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"游戏启动失败: {str(e)}")
+            return
+        try:
+            self.update_players_display()
+            self.update_hand_cards()
+            self.play_area.clear_all_plays()
+            
+            players_info = self.game_manager.get_players_info()
+            dealer_name = None
+            for info in players_info:
+                if info.get('is_dealer', False):
+                    dealer_name = info['name']
+                    break
+            
+            self.status_label.setText(f"🎯 庄家: {dealer_name}\n新游戏开始！")
+            self.round_info.clear()
+            
+            # 开始第一回合
+            self.start_new_round()
+            logger.info(f"新游戏开始，庄家: {dealer_name}")
+            
+        except Exception as e:
+            logger.error(f"新游戏设置失败: {str(e)}", exc_info=True)
+            QMessageBox.critical(self, "错误", f"新游戏设置失败: {str(e)}")
         
     def update_players_display(self):
         """更新玩家显示"""
