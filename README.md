@@ -1,6 +1,6 @@
 # 刮刮登纸牌游戏
 
-一个使用Python实现的4人纸牌游戏，支持1个真实玩家和3个AI玩家。
+一个使用Python实现的4人纸牌游戏，支持1个真实玩家和3个AI玩家。提供命令行版本和图形界面版本。
 
 ## 游戏规则
 
@@ -29,15 +29,43 @@
 
 ```
 guaguadeng/
-├── card.py          # Card类 - 表示单张牌
-├── player.py        # Player类 - 表示玩家
-├── game.py          # Game类 - 命令行版游戏逻辑
-├── game_core.py     # GameCore类 - 核心游戏逻辑（无UI）
-├── gui_game.py      # 图形界面版本
-├── test_game.py     # 测试脚本
-├── launcher.py      # 游戏启动器
-└── README.md        # 说明文档
+├── abstract_card.py          # 抽象卡牌基类
+├── abstract_player.py        # 抽象玩家基类  
+├── abstract_factory.py       # 抽象工厂模式
+├── card.py                   # CLI版Card类
+├── player.py                 # CLI版Player类
+├── gui_components.py         # GUI版组件
+├── game_core.py             # 核心游戏逻辑（无UI）
+├── game_cli.py              # 命令行版游戏界面
+├── game_gui.py              # PySide6图形界面版本
+├── game_gui_manager.py      # GUI游戏管理器
+├── launcher.py              # 游戏启动器
+├── test_game.py             # 测试脚本
+└── README.md                # 说明文档
 ```
+
+## 游戏版本
+
+### 📱 图形界面版本 (推荐)
+- 基于PySide6开发
+- 直观的图形化界面
+- 可视化的卡牌操作
+- 实时游戏状态显示
+
+### 💻 命令行版本
+- 纯文本界面
+- 轻量级，无依赖
+- 适合服务器环境
+
+## 安装依赖
+
+### GUI版本依赖
+```bash
+pip install PySide6
+```
+
+### CLI版本
+无额外依赖，仅需Python 3.6+
 
 ## 运行游戏
 
@@ -49,38 +77,21 @@ python3 launcher.py
 ```
 
 启动器提供以下选项：
-- 📺 命令行版本（经典体验）
-- 🎨 图形界面演示版（快速了解）
-- 🎮 图形界面完整版（推荐）
-- ✨ 图形界面增强版（最佳体验）
-- 🧪 运行测试（开发者）
+- 📺 命令行版本
+-  图形界面版本
 
 ### 🎯 直接启动
 
-#### 命令行版本（经典）
+#### 命令行版本
 
 ```bash
-python3 game.py
+python3 game_cli.py
 ```
 
-#### 图形界面版本（推荐）
-
-#### 快速演示版
+#### 图形界面版本
 
 ```bash
-python3 demo_gui.py
-```
-
-#### 完整游戏版
-
-```bash
-python3 gui_game.py
-```
-
-#### 增强专业版
-
-```bash
-python3 enhanced_gui.py
+python3 game_gui.py
 ```
 
 ## 游戏操作
@@ -93,35 +104,54 @@ python3 enhanced_gui.py
 5. 游戏结束后可选择继续下一局
 
 ### 图形界面版本
-1. 点击"开始游戏"按钮
-2. 点击手牌选择要出的牌（高亮显示）
-3. 点击"确认出牌"完成出牌
+1. 程序启动后自动开始游戏
+2. 点击手牌选择要出的牌（蓝色高亮显示）
+3. 点击"出牌"按钮完成出牌，或点击"跳过"按钮跳过
 4. 观察AI玩家自动出牌
-5. 游戏结束后自动显示排名
+5. 游戏结束后会显示最终排名
+6. 点击"新游戏"开始新的游戏
 
-> 📖 详细的图形界面使用说明请查看 [GUI_GUIDE.md](GUI_GUIDE.md)
-6. 随时输入'q'退出游戏
+## 技术特色
+
+### 架构设计
+- **抽象工厂模式**：支持CLI和GUI两种实现
+- **模块化设计**：核心逻辑与界面分离
+- **高复用性**：游戏逻辑可被不同界面复用
+
+### GUI界面特点
+- **PySide6框架**：专业的Qt图形界面
+- **响应式布局**：适配不同屏幕尺寸
+- **实时更新**：游戏状态实时显示
+- **用户友好**：直观的操作方式
 
 ## 类设计
 
-### Card类
+### 核心类
+
+#### Card类 (card.py)
 - `value`: 牌的点数(1-10)
 - `suit`: 牌的花色(♠♥♦♣)
 - `create_deck()`: 创建完整牌组
 
-### Player类
+#### Player类 (player.py)
 - `score`: 玩家分数
 - `position`: 玩家位置(东南西北)
 - `hand_cards`: 手中的牌
 - `won_cards`: 获胜的牌
-- `play_cards()`: 出牌方法
-- `calculate_score()`: 计算得分
+- `ai_choose_cards()`: AI出牌方法
 
-### Game类
+#### GameCore类 (game_core.py)
 - `start_new_game()`: 开始新游戏
 - `deal_cards()`: 发牌
-- `play_game()`: 游戏主循环
 - `determine_round_winner()`: 判断回合胜者
+- `validate_play()`: 验证出牌是否有效
+
+### GUI管理类
+
+#### GameGUIManager类 (game_gui_manager.py)
+- 简化的游戏状态管理
+- 为GUI界面提供专门接口
+- 处理人类和AI玩家的出牌逻辑
 
 ## 特性
 
