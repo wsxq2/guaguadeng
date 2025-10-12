@@ -13,7 +13,8 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFont, QPalette, QColor, QFontDatabase
 
-from game_gui_manager import GameGUIManager
+from game_core import GameCore
+from abstract_factory import GUIGameFactory
 from card import Card
 
 
@@ -343,8 +344,11 @@ class GameGUI(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        # 使用GUI游戏管理器
-        self.game_manager = GameGUIManager()
+        # 初始化游戏核心（使用GUI工厂）
+        gui_factory = GUIGameFactory(theme="default")
+        self.game_core = GameCore(gui_factory)
+        
+        # GUI特定的状态变量
         self.current_leader_index = 0
         self.current_player_index = 0
         self.waiting_for_human_input = False
@@ -470,9 +474,10 @@ class GameGUI(QMainWindow):
     def start_new_game(self):
         """开始新游戏"""
         try:
-            self.game_manager.start_new_game()
+            self.game_core.reset_game()
+            self.game_core.setup_new_game()
             
-            self.current_leader_index = self.game_manager.current_leader_index
+            self.current_leader_index = self.game_core.current_dealer_index
             self.current_player_index = self.current_leader_index
             self.waiting_for_human_input = False
         except Exception as e:
@@ -483,7 +488,7 @@ class GameGUI(QMainWindow):
             self.update_hand_cards()
             self.play_area.clear_all_plays()
             
-            players_info = self.game_manager.get_players_info()
+            players_info = self.game_core.get_players_info()
             dealer_name = None
             for info in players_info:
                 if info.get('is_dealer', False):
@@ -510,7 +515,7 @@ class GameGUI(QMainWindow):
                 child.widget().deleteLater()
         
         # 添加玩家信息
-        players_info = self.game_manager.get_players_info()
+        players_info = self.game_core.get_players_info()
         for i, player_info in enumerate(players_info):
             is_current = (i == self.current_player_index)
             player_widget = PlayerAreaWidget(player_info, is_current)
@@ -518,43 +523,43 @@ class GameGUI(QMainWindow):
             
     def update_hand_cards(self):
         """更新手牌显示"""
-        human_player = self.game_manager.get_human_player()
+        human_player = self.game_core.get_human_player()
         if human_player:
             self.hand_cards.update_cards(human_player.hand_cards)
             
     def start_new_round(self):
         """开始新回合"""
-        if self.game_manager.is_game_over():
+        if self.game_core.is_game_over():
             self.show_game_over()
             return
             
         self.play_area.clear_all_plays()
-        self.game_manager.current_round_plays.clear()
+        self.game_core.current_round_plays.clear()
         self.current_player_index = self.current_leader_index
         
-        players_info = self.game_manager.get_players_info()
+        players_info = self.game_core.get_players_info()
         leader_info = players_info[self.current_leader_index]
         self.status_label.setText(f"🎲 新回合\n由 {leader_info['name']} 先出牌")
         self.round_info.append(f"=== 新回合 ===\n由 {leader_info['name']} ({leader_info['position']}) 先出牌\n")
-        
+         
         # 开始出牌流程
         self.process_next_player()
         
     def process_next_player(self):
         """处理下一个玩家出牌"""
-        if self.game_manager.is_round_complete():
+        if self.game_core.is_round_complete():
             # 回合结束，处理结果
             self.process_round_end()
             return
             
-        next_index = self.game_manager.get_next_player_index()
+        next_index = self.game_core.get_next_player_index()
         if next_index == -1:
             self.process_round_end()
             return
             
         self.current_player_index = next_index
-        player_info = self.game_manager.get_players_info()[self.current_player_index]
-        requirements = self.game_manager.get_round_requirements()
+        player_info = self.game_core.get_players_info()[self.current_player_index]
+        requirements = self.game_core.get_round_requirements(self.game_core.current_round_plays)
         
         self.update_players_display()
         
@@ -572,17 +577,17 @@ class GameGUI(QMainWindow):
         self.hand_cards.clear_selection()
         
         # 更新状态
-        req_text = self.game_manager.format_requirements_text(requirements)
+        req_text = self.game_core.format_requirements_text(requirements)
         self.status_label.setText(f"👤 你的回合\n{req_text}")
         
         # 启用控制按钮
         self.play_button.setEnabled(True)
-        if len(self.game_manager.current_round_plays) > 0:  # 非首个出牌者可以跳过
+        if len(self.game_core.current_round_plays) > 0:  # 非首个出牌者可以跳过
             self.pass_button.setEnabled(True)
         
     def handle_ai_turn(self, player_index: int, requirements: Dict):
         """处理AI玩家回合"""
-        player_info = self.game_manager.get_players_info()[player_index]
+        player_info = self.game_core.get_players_info()[player_index]
         self.status_label.setText(f"🤖 {player_info['name']} 正在思考...")
         
         # 使用定时器模拟思考时间
@@ -590,14 +595,24 @@ class GameGUI(QMainWindow):
         
     def execute_ai_turn(self, player_index: int, requirements: Dict):
         """执行AI回合"""
-        player_info = self.game_manager.get_players_info()[player_index]
-        cards = self.game_manager.play_ai_cards(player_index)
+        player_info = self.game_core.get_players_info()[player_index]
+        player = self.game_core.get_player_by_index(player_index)
+        
+        # AI选择牌
+        cards = player.ai_choose_cards(
+            requirements.get('required_count'),
+            requirements.get('must_manage', False),
+            requirements.get('min_required_value')
+        )
         
         if cards:
-            self.play_area.update_play(player_info['position'], cards)
-            
-            cards_str = ', '.join(str(card) for card in cards)
-            self.round_info.append(f"{player_info['name']}: {cards_str}\n")
+            # 执行出牌
+            success = self.game_core.execute_play(player, cards)
+            if success:
+                self.play_area.update_play(player_info['position'], cards)
+                
+                cards_str = ', '.join(str(card) for card in cards)
+                self.round_info.append(f"{player_info['name']}: {cards_str}\n")
         else:
             self.round_info.append(f"{player_info['name']}: 跳过\n")
             
@@ -613,19 +628,23 @@ class GameGUI(QMainWindow):
         if not self.waiting_for_human_input or not self.selected_cards:
             return
             
-        # 验证并执行出牌
-        if not self.game_manager.validate_human_play(self.selected_cards):
+        human_player = self.game_core.get_human_player()
+        if not human_player:
+            return
+            
+        # 验证出牌
+        requirements = self.game_core.get_round_requirements(self.game_core.current_round_plays)
+        if not self.game_core.validate_play(human_player, self.selected_cards, requirements):
             QMessageBox.warning(self, "无效出牌", "所选牌不符合出牌要求！")
             return
             
         # 执行出牌
-        if not self.game_manager.play_human_cards(self.selected_cards):
+        if not self.game_core.execute_play(human_player, self.selected_cards):
             QMessageBox.warning(self, "出牌失败", "出牌失败，请重试！")
             return
         
         # 更新界面
-        human_player = self.game_manager.get_human_player()
-        current_plays = self.game_manager.get_current_plays()
+        current_plays = self.game_core.get_current_plays()
         self.play_area.update_play(human_player.position, self.selected_cards)
         
         cards_str = ', '.join(str(card) for card in self.selected_cards)
@@ -656,18 +675,18 @@ class GameGUI(QMainWindow):
         
     def process_round_end(self):
         """处理回合结束"""
-        if not self.game_manager.current_round_plays:
+        if not self.game_core.current_round_plays:
             self.start_new_round()
             return
             
         # 确定获胜者
-        winner_result = self.game_manager.get_round_winner()
+        winner = self.game_core.determine_winner(self.game_core.current_round_plays)
         
-        if winner_result:
-            winner, cards_won = winner_result
-            
-            # 获取获胜者出的牌
-            winner_cards = self.game_manager.current_round_plays.get(winner.position, [])
+        if winner:
+            # 结束回合并获取结果
+            result = self.game_core.end_round(winner, self.game_core.current_round_plays)
+            cards_won = result['cards_won']
+            winner_cards = result['winner_cards']
             
             # 显示基本获胜信息
             self.round_info.append(f"\n🏆 {winner.name} 赢得本回合！\n")
@@ -686,10 +705,7 @@ class GameGUI(QMainWindow):
             self.round_info.append("\n")
             
             # 设置下一回合的领牌者
-            self.current_leader_index = self.game_manager.current_leader_index
-        
-        # 结束回合
-        self.game_manager.end_round()
+            self.current_leader_index = self.game_core.current_dealer_index
         
         # 更新显示
         self.update_players_display()
@@ -701,15 +717,11 @@ class GameGUI(QMainWindow):
         """检查并显示平局信息"""
         # 检查是否有其他玩家出了相同点数的牌
         tied_players = []
-        for position, cards in self.game_manager.current_round_plays.items():
+        for player, cards in self.game_core.current_round_plays.items():
             if cards:
                 player_max = max(card.value for card in cards)
                 if player_max == max_value:
-                    # 找到对应的玩家
-                    for player in self.game_manager.core.players:
-                        if player.position == position:
-                            tied_players.append(player)
-                            break
+                    tied_players.append(player)
         
         if len(tied_players) > 1:
             # 有平局，显示先出获胜信息
@@ -724,16 +736,21 @@ class GameGUI(QMainWindow):
         
     def format_requirements(self, requirements: Dict) -> str:
         """格式化出牌要求"""
-        return self.game_manager.format_requirements_text(requirements)
+        return self.game_core.format_requirements_text(requirements)
         
     def show_game_over(self):
         """显示游戏结束"""
+        # 计算最终分数
+        for player in self.game_core.players:
+            round_score = player.calculate_score()
+            player.update_score(round_score)
+            
         # 获取最终排名
-        ranking = self.game_manager.get_final_ranking()
+        ranking = sorted(self.game_core.players, key=lambda p: p.score, reverse=True)
         
         result_text = "🎉 游戏结束！\n\n最终排名：\n"
-        for rank_info in ranking:
-            result_text += f"{rank_info['rank']}. {rank_info['name']}: {rank_info['score']} 分\n"
+        for i, player in enumerate(ranking, 1):
+            result_text += f"{i}. {player.name}: {player.score} 分\n"
             
         QMessageBox.information(self, "游戏结束", result_text)
         

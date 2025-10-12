@@ -183,6 +183,10 @@ class GameCore:
             
         try:
             player.play_cards(selected_cards)
+            
+            # 设置出牌顺序
+            player.play_order = len(self.current_round_plays)
+            
             print(f"{player.name} 出牌: {', '.join(str(card) for card in selected_cards)}")
             self.current_round_plays[player] = selected_cards
             return True
@@ -321,3 +325,66 @@ class GameCore:
     def get_real_player(self):
         """获取真实玩家"""
         return self.players[0]
+    
+    def get_human_player(self):
+        """获取人类玩家（与GUI兼容的别名）"""
+        for player in self.players:
+            if player.name == "真实玩家":
+                return player
+        return None
+    
+    def get_player_by_index(self, index: int):
+        """根据索引获取玩家"""
+        if 0 <= index < len(self.players):
+            return self.players[index]
+        return None
+    
+    def get_players_info(self):
+        """获取所有玩家信息（GUI格式）"""
+        players_info = []
+        for i, player in enumerate(self.players):
+            info = {
+                'index': i,
+                'name': player.name,
+                'position': player.position,
+                'score': player.score,
+                'hand_count': len(player.hand_cards),
+                'won_count': len(player.won_cards),
+                'is_dealer': hasattr(player, 'is_dealer') and player.is_dealer,
+                'is_human': player.name == "真实玩家"
+            }
+            players_info.append(info)
+        return players_info
+    
+    def is_round_complete(self):
+        """检查回合是否完成"""
+        return len(self.current_round_plays) >= 4
+    
+    def get_next_player_index(self):
+        """获取下一个要出牌的玩家索引"""
+        plays_count = len(self.current_round_plays)
+        if plays_count >= 4:
+            return -1  # 回合已完成
+        return (self.current_dealer_index + plays_count) % 4
+    
+    def get_current_plays(self):
+        """获取当前回合的出牌情况（位置格式）"""
+        current_plays = {}
+        for player, cards in self.current_round_plays.items():
+            current_plays[player.position] = cards
+        return current_plays
+    
+    def format_requirements_text(self, requirements):
+        """格式化出牌要求为文本"""
+        if not requirements:
+            return "可以出任意牌"
+        
+        text = ""
+        if 'required_count' in requirements and requirements['required_count']:
+            text += f"需要出 {requirements['required_count']} 张牌\n"
+        if 'min_required_value' in requirements and requirements['min_required_value'] > 1:
+            text += f"最小点数: {requirements['min_required_value']}\n"
+        if 'must_manage' in requirements and requirements['must_manage']:
+            text += "必须管牌 (≥8点)\n"
+        
+        return text.strip() if text else "可以出任意牌"
