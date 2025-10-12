@@ -280,7 +280,7 @@ class PlayAreaWidget(QWidget):
         self.player_play_areas = {}
         for position, (row, col) in self.positions.items():
             area = QFrame()
-            area.setFixedSize(150, 100)
+            area.setFixedSize(250, 150)
             area.setFrameStyle(QFrame.Box)
             area.setStyleSheet("background-color: lightgray; border-radius: 5px;")
             
