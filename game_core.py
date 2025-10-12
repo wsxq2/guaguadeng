@@ -6,7 +6,7 @@
 
 import random
 from typing import List, Dict, Tuple, Optional, TYPE_CHECKING
-from abstract_factory import GameFactory
+from factory import GameFactory
 
 if TYPE_CHECKING:
     from card import AbstractCard
