@@ -60,8 +60,8 @@ class GameCore:
                     player.take_cards([self.deck.pop()])
     
     def is_game_over(self):
-        """检查游戏是否结束"""
-        return any(len(player.hand_cards) == 0 for player in self.players) or self.game_over
+        """检查游戏是否结束（所有玩家手牌都出完）"""
+        return all(len(player.hand_cards) == 0 for player in self.players) or self.game_over
     
     def get_round_requirements(self, round_plays: Dict):
         """获取当前回合的出牌要求"""
@@ -78,12 +78,12 @@ class GameCore:
         required_count = len(first_play)
         must_manage = len(round_plays) == 2  # 第3个出牌者需要管牌
         
-        # 计算最小要求点数
+        # 计算最小要求点数（与game.py保持一致）
         max_value = 0
         for cards in round_plays.values():
             if cards:  # 确保牌列表不为空
                 max_value = max(max_value, max(card.value for card in cards))
-        min_required_value = max_value + 1
+        min_required_value = max_value  # 改为与game.py一致
         
         return {
             'required_count': required_count,
@@ -115,8 +115,6 @@ class GameCore:
             
         # 获取可选方案
         available_plays = player.get_available_plays(required_count, must_manage, min_required_value)
-        print(available_plays);
-        print(selected_cards);
         
         # 检查选择的牌是否在可选方案中
         return any(set(play) == set(selected_cards) for play in available_plays)
@@ -128,7 +126,11 @@ class GameCore:
         self.current_round_plays[player] = selected_cards
     
     def determine_winner(self, round_plays: Dict[Player, List[Card]]) -> Optional[Player]:
-        """判断回合胜者"""
+        """
+        判断回合胜者
+        当有多个玩家出相同最大点数时，先出牌者获胜
+        当领牌者出多张相同牌时，多张相同牌优于多张不同牌
+        """
         if not round_plays:
             return None
         
@@ -137,57 +139,89 @@ class GameCore:
         if not valid_plays:
             return None
             
-        print(round_plays)
-        # 按出牌顺序给玩家编号
-        play_order = {}
-        for i, (player, cards) in enumerate(valid_plays.items()):
-            player.play_order = i
-            play_order[player] = i
-            
-        # 找出最大点数
-        max_value = 0
-        for cards in valid_plays.values():
-            print(cards)
-            if cards:  # 确保牌列表不为空
-                max_value = max(max_value, max(card.value for card in cards))
-            
-        # 找出所有出最大点数的玩家
-        tied_players = []
+        # 检查领牌者是否出了多张相同牌
+        leader_cards = None
         for player, cards in valid_plays.items():
-            if cards and max(card.value for card in cards) == max_value:
-                tied_players.append(player)
+            if player.play_order == 0:  # 领牌者
+                leader_cards = cards
+                break
+        
+        leader_is_same_value = False
+        if leader_cards and len(leader_cards) > 1:
+            leader_values = set(card.value for card in leader_cards)
+            leader_is_same_value = len(leader_values) == 1
+        
+        # 如果领牌者出了多张相同牌，使用特殊规则
+        if leader_is_same_value:
+            return self._determine_winner_with_same_card_priority(valid_plays)
+        else:
+            return self._determine_winner_normal(valid_plays)
+    
+    def _determine_winner_with_same_card_priority(self, valid_plays: Dict[Player, List[Card]]) -> Optional[Player]:
+        """
+        当领牌者出多张相同牌时的胜负判定
+        优先级：相同牌 > 混合牌，相同优先级内按点数和出牌顺序
+        """
+        same_card_players = []  # 出相同牌的玩家
+        mixed_card_players = []  # 出混合牌的玩家
+        
+        for player, cards in valid_plays.items():
+            if not cards:
+                continue
                 
-        if len(tied_players) == 1:
-            return tied_players[0]
+            is_same_value = len(set(card.value for card in cards)) == 1
+            max_value = max(card.value for card in cards)
             
-        # 有多个玩家出相同最大点数，检查特殊规则
-        leader_cards = list(valid_plays.values())[0]  # 领牌者的牌
+            if is_same_value:
+                same_card_players.append((player, cards, max_value))
+            else:
+                mixed_card_players.append((player, cards, max_value))
         
-        # 特殊规则：当领牌者出多张相同牌时，多张相同牌优于多张不同牌
-        if len(leader_cards) > 1:
-            leader_values = [card.value for card in leader_cards]
-            if len(set(leader_values)) == 1:  # 领牌者出的是相同牌
-                for player in tied_players:
-                    cards = valid_plays[player]
-                    if not cards:  # 跳过空列表
-                        continue
-                    card_values = [card.value for card in cards]
-                    
-                    # 如果这个玩家出的也是相同牌且点数等于最大值
-                    if (len(set(card_values)) == 1 and 
-                        card_values[0] == max_value):
-                        # 优先选择相同牌
-                        valid_tied_players = [p for p in tied_players 
-                                            if valid_plays[p] and len(set([c.value for c in valid_plays[p]])) == 1]
-                        if valid_tied_players:
-                            return min(valid_tied_players, key=lambda p: play_order[p])
+        # 优先考虑相同牌玩家
+        if same_card_players:
+            # 在相同牌玩家中找最大点数，如果点数相同则先出者胜
+            max_value = max(item[2] for item in same_card_players)
+            candidates = [item for item in same_card_players if item[2] == max_value]
+            winner_item = min(candidates, key=lambda item: item[0].play_order)
+            return winner_item[0]
         
-        # 默认规则：相同点数先出者获胜
-        return min(tied_players, key=lambda p: play_order[p])
+        # 如果没有相同牌玩家，在混合牌玩家中选择
+        if mixed_card_players:
+            max_value = max(item[2] for item in mixed_card_players)
+            candidates = [item for item in mixed_card_players if item[2] == max_value]
+            winner_item = min(candidates, key=lambda item: item[0].play_order)
+            return winner_item[0]
+        
+        return None
+    
+    def _determine_winner_normal(self, valid_plays: Dict[Player, List[Card]]) -> Optional[Player]:
+        """
+        正常的胜负判定（领牌者未出多张相同牌时）
+        """
+        max_value = 0
+        winner = None
+        earliest_play_order = float('inf')
+        
+        for player, cards in valid_plays.items():
+            if not cards:
+                continue
+                
+            card_max_value = max(card.value for card in cards)
+            
+            if card_max_value > max_value:
+                max_value = card_max_value
+                winner = player
+                earliest_play_order = player.play_order
+            elif card_max_value == max_value and player.play_order < earliest_play_order:
+                winner = player
+                earliest_play_order = player.play_order
+        
+        return winner
     
     def end_round(self, winner: Player, round_plays: Dict[Player, List[Card]]):
         """结束回合，处理获得的牌和分数"""
         # 胜者获得自己出的牌
+        winner_cards = []
         if winner in round_plays:
             winner_cards = round_plays[winner]
             winner.win_round(winner_cards)
@@ -207,8 +241,8 @@ class GameCore:
             
         return {
             'winner': winner,
-            'cards_won': len(winner_cards) if winner in round_plays else 0,
-            'winner_cards': winner_cards if winner in round_plays else []
+            'cards_won': len(winner_cards),
+            'winner_cards': winner_cards
         }
     
     def get_final_rankings(self):
