@@ -6,11 +6,11 @@
 
 import random
 from typing import List, Dict, Tuple, Optional, TYPE_CHECKING
+from abstract_factory import GameFactory
 
 if TYPE_CHECKING:
-    from abstract_card import AbstractCard
-    from abstract_player import Player
-    from abstract_factory import AbstractGameFactory
+    from card import AbstractCard
+    from player import Player
 
 
 class GameCore:
@@ -26,7 +26,7 @@ class GameCore:
     MANAGE_CARD_THRESHOLD = 8  # 管牌最低要求
     THIRD_PLAYER_INDEX = 2  # 第3个出牌者需要管牌
     
-    def __init__(self, factory: Optional['AbstractGameFactory'] = None):
+    def __init__(self):
         """
         初始化游戏
         
@@ -40,25 +40,21 @@ class GameCore:
         self.game_over = False
         
         # 设置工厂
-        if factory is None:
-            from abstract_factory import CLIGameFactory
-            self._factory = CLIGameFactory()
-        else:
-            self._factory = factory
+        self._factory = GameFactory()
         
         # 创建四个玩家
         self._initialize_players()
     
     @property
-    def factory(self) -> 'AbstractGameFactory':
+    def factory(self) -> 'GameFactory':
         """获取当前使用的工厂"""
         return self._factory
     
     def _initialize_players(self):
         """使用工厂初始化玩家"""
-        self.players.append(self._factory.create_player("真实玩家", self.POSITIONS[0]))
+        self.players.append(self._factory.create_human_player("真实玩家", self.POSITIONS[0]))
         for i in range(1, self.PLAYER_COUNT):
-            self.players.append(self._factory.create_player(f"AI玩家{i}", self.POSITIONS[i]))
+            self.players.append(self._factory.create_ai_player(f"AI玩家{i}", self.POSITIONS[i]))
     
     def reset_game(self):
         """重置游戏状态"""

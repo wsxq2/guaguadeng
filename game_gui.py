@@ -14,7 +14,6 @@ from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFont, QPalette, QColor, QFontDatabase
 
 from game_core import GameCore
-from abstract_factory import GUIGameFactory
 from card import Card
 
 
@@ -345,8 +344,7 @@ class GameGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         # 初始化游戏核心（使用GUI工厂）
-        gui_factory = GUIGameFactory(theme="default")
-        self.game_core = GameCore(gui_factory)
+        self.game_core = GameCore()
         
         # GUI特定的状态变量
         self.current_leader_index = 0

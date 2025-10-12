@@ -3,46 +3,152 @@
 表示游戏中的玩家，基于抽象基类的CLI实现
 """
 
-import random
-from typing import List, Dict
-from abstract_player import AbstractPlayer
-from abstract_card import AbstractCard
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from card import AbstractCard
 
 
-class Player(AbstractPlayer):
+class Player(ABC):
     """
-    表示一个玩家的CLI实现
-    继承自AbstractPlayer，提供文本显示和完整的游戏逻辑
+    抽象玩家基类
+    定义所有玩家必须实现的接口
     """
+    
+    POSITIONS = ['东', '南', '西', '北']
+    
+    def __init__(self, name: str, position: str):
+        """
+        初始化玩家
+        
+        Args:
+            name (str): 玩家姓名
+            position (str): 玩家位置
+        """
+        if position not in self.POSITIONS:
+            raise ValueError(f"位置必须是 {self.POSITIONS} 中的一个")
+            
+        self.name = name
+        self.position = position
+        self.score = 100  # 初始分数
+        self._hand_cards = []  # 手中的牌
+        self._played_cards = []  # 已打出的牌
+        self._won_cards = []  # 胜出获得的牌
+        self.is_dealer = False  # 是否为庄家
+        self.play_order = 0  # 本回合出牌顺序
+    
+    @property
+    def hand_cards(self) -> List['AbstractCard']:
+        """获取手牌"""
+        return self._hand_cards.copy()  # 返回副本以保护内部状态
+    
+    @property
+    def played_cards(self) -> List['AbstractCard']:
+        """获取已打出的牌"""
+        return self._played_cards.copy()
+    
+    @property
+    def won_cards(self) -> List['AbstractCard']:
+        """获取胜出获得的牌"""
+        return self._won_cards.copy()
     
     def __str__(self) -> str:
         """返回玩家的字符串表示"""
         dealer_mark = "🎯" if self.is_dealer else ""
         return f"{self.name}({self.position}){dealer_mark} - 分数: {self.score}"
     
-    def display_info(self) -> str:
-        """CLI显示玩家信息"""
+    def display_info(self) -> Any:
+        """显示玩家信息的方法，具体实现可以是文本、GUI等"""
         return self.__str__()
     
-    def display_avatar(self) -> str:
-        """CLI显示玩家头像（文本版本）"""
+    def display_avatar(self) -> Any:
+        """显示玩家头像的方法，具体实现可以是文本、图片等"""
         if self.is_dealer:
             return "🎯"
         else:
             return "👤"
     
-    def take_cards(self, cards: List[AbstractCard]) -> None:
+    # 游戏逻辑方法 - 具体实现
+    def take_cards(self, cards: List['AbstractCard']) -> None:
         """
-        取牌到手中，重写以添加排序功能
+        玩家获得牌（发牌时使用）
+        
+        Args:
+            cards: 要获得的牌列表
         """
-        super().take_cards(cards)
-        self.sort_hand_cards()
-    
-    def sort_hand_cards(self):
-        """按大小排序手中的牌"""
+        self._hand_cards.extend(cards)
         self._hand_cards.sort(key=lambda card: card.value)
     
-    def can_play_cards(self, cards: List[AbstractCard], required_count: int = None) -> bool:
+    def play_cards(self, cards: List['AbstractCard']) -> None:
+        """
+        玩家出牌
+        
+        Args:
+            cards: 要出的牌列表
+        """
+        for card in cards:
+            if card in self._hand_cards:
+                self._hand_cards.remove(card)
+                self._played_cards.append(card)
+            else:
+                raise ValueError(f"玩家 {self.name} 没有这张牌: {card}")
+    
+    def win_round(self, cards: List['AbstractCard']) -> None:
+        """
+        玩家赢得回合，获得牌
+        
+        Args:
+            cards: 获得的牌列表
+        """
+        self._won_cards.extend(cards)
+    
+    def reset_for_new_game(self) -> None:
+        """重置玩家状态以开始新游戏"""
+        self._hand_cards.clear()
+        self._played_cards.clear()
+        self._won_cards.clear()
+        self._is_dealer = False
+        self._play_order = 0
+        self.score = 100
+    
+    def calculate_score(self) -> int:
+        """
+        计算本局得分
+        计分公式：4*胜出的牌数-10
+        
+        Returns:
+            int: 本局得分
+        """
+        return 4 * len(self._won_cards) - 10
+    
+    def update_score(self, round_score: int) -> None:
+        """
+        更新总分数
+        
+        Args:
+            round_score: 本局得分
+        """
+        self.score += round_score
+    
+    def shuffle_deck(self, deck: List['AbstractCard']) -> List['AbstractCard']:
+        """
+        洗牌方法（可以有不同的洗牌策略）
+        
+        Args:
+            deck: 要洗的牌组
+            
+        Returns:
+            List[AbstractCard]: 洗好的牌组
+        """
+        if not self.is_dealer:
+            raise ValueError("只有庄家可以洗牌")
+        
+        shuffled_deck = deck.copy()
+        random.shuffle(shuffled_deck)
+        return shuffled_deck
+
+    def can_play_cards(self, cards: List['AbstractCard'], required_count: int = None) -> bool:
         """
         检查是否可以出这些牌
         
@@ -70,8 +176,8 @@ class Player(AbstractPlayer):
         
         # 如果是跟牌，不强制要求相同点数，只要数量匹配即可
         return True
-    
-    def get_playable_cards_by_value(self, value: int, count: int) -> List[AbstractCard]:
+
+    def get_playable_cards_by_value(self, value: int, count: int) -> List['AbstractCard']:
         """
         获取指定点数和数量的可出牌
         
@@ -87,17 +193,17 @@ class Player(AbstractPlayer):
             return matching_cards[:count]
         return []
     
-    def get_available_plays(self, required_count: int = None, must_manage: bool = False, min_required_value: int = None) -> List[List[AbstractCard]]:
+    def get_available_plays(self, required_count: int, must_manage: bool, min_required_value: int) -> List[List['AbstractCard']]:
         """
-        获取所有可能的出牌组合
+        获取可用的出牌选择
         
         Args:
-            required_count: 需要的牌数量（跟牌时使用）
-            must_manage: 是否必须管牌（第3个出牌者）
-            min_required_value: 必须超过的最小点数（后出牌者必须比前面大）
+            required_count: 需要出的牌数量
+            must_manage: 是否必须管牌
+            min_required_value: 最小要求点数
             
         Returns:
-            List[List[AbstractCard]]: 可能的出牌组合列表
+            List[List[AbstractCard]]: 可选的出牌组合列表
         """
         plays = []
         
@@ -133,7 +239,7 @@ class Player(AbstractPlayer):
         plays = [play for play in plays if play]
         return plays
     
-    def _get_follow_plays(self, required_count: int, value_groups: Dict, min_required_value: int) -> List[List[AbstractCard]]:
+    def _get_follow_plays(self, required_count: int, value_groups: Dict, min_required_value: int) -> List[List['AbstractCard']]:
         """
         获取普通跟牌的可选方案
         必须出比前面玩家更大的点数，如果没有则可以随意出
@@ -271,6 +377,32 @@ class Player(AbstractPlayer):
         
         return fallback_plays
     
+    
+import random
+from typing import List, Dict
+
+
+class HumanPlayer(Player):
+    """
+    表示一个人类玩家
+    """
+
+    def __str__(self) -> str:
+        """返回玩家的字符串表示"""
+        dealer_mark = "🎯" if self.is_dealer else ""
+        return f"{self.name}({self.position}){dealer_mark} (真人) - 分数: {self.score}"
+    
+
+class AiPlayer(Player):
+    """
+    表示一个AI玩家
+    """
+
+    def __str__(self) -> str:
+        """返回玩家的字符串表示"""
+        dealer_mark = "🎯" if self.is_dealer else ""
+        return f"{self.name}({self.position}){dealer_mark} (AI) - 分数: {self.score}"
+
     def _evaluate_fallback_play(self, cards):
         """
         评估备用出牌方案的优劣
@@ -320,33 +452,7 @@ class Player(AbstractPlayer):
         # 优先级：相同点数优于混合牌，牌值越小越好
         return (-int(is_same_value), min_value)
     
-    def update_score(self, score_change):
-        """
-        更新分数
-        
-        Args:
-            score_change (int): 分数变化
-        """
-        self._score += score_change
-    
-    def shuffle_deck(self, deck: List[AbstractCard]) -> List[AbstractCard]:
-        """
-        洗牌（只有庄家可以执行）
-        
-        Args:
-            deck: 要洗的牌组
-            
-        Returns:
-            List[AbstractCard]: 洗好的牌组
-        """
-        if not self.is_dealer:
-            raise ValueError("只有庄家可以洗牌")
-        
-        shuffled_deck = deck.copy()
-        random.shuffle(shuffled_deck)
-        return shuffled_deck
-    
-    def ai_choose_cards(self, required_count: int = None, must_manage: bool = False, min_required_value: int = None) -> List[AbstractCard]:
+    def ai_choose_cards(self, required_count: int = None, must_manage: bool = False, min_required_value: int = None) -> List['AbstractCard']:
         """
         AI选择出牌（简单策略）
         
