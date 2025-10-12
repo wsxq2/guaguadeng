@@ -1,29 +1,22 @@
 """
 刮刮登纸牌游戏 - 核心游戏逻辑
-不包含任何UI相关代码，纯粹的游戏逻辑
+使用抽象工厂模式，支持多种游戏实现
+保持与原版游戏逻辑完全一致
 """
 
 import random
-from typing import List, Dict, Tuple, Optional, Type
-from abstract_card import AbstractCard
-from abstract_player import AbstractPlayer
+from typing import List, Dict, Tuple, Optional, TYPE_CHECKING
 
-
-"""
-刮刮登纸牌游戏 - 核心游戏逻辑
-不包含任何UI相关代码，纯粹的游戏逻辑
-"""
-
-import random
-from typing import List, Dict, Tuple, Optional, Type, Callable
-from abstract_card import AbstractCard
-from abstract_player import AbstractPlayer
+if TYPE_CHECKING:
+    from abstract_card import AbstractCard
+    from abstract_player import AbstractPlayer
+    from abstract_factory import AbstractGameFactory
 
 
 class GameCore:
     """
     游戏核心逻辑类，管理游戏状态和规则
-    不包含任何UI相关代码，使用抽象接口
+    使用抽象工厂模式，与原版逻辑保持一致
     """
     
     # 游戏常量
@@ -33,47 +26,39 @@ class GameCore:
     MANAGE_CARD_THRESHOLD = 8  # 管牌最低要求
     THIRD_PLAYER_INDEX = 2  # 第3个出牌者需要管牌
     
-    def __init__(self, player_factory: Callable[[str, str], AbstractPlayer] = None, 
-                 card_factory: Callable[[], List[AbstractCard]] = None):
+    def __init__(self, factory: Optional['AbstractGameFactory'] = None):
         """
         初始化游戏
         
         Args:
-            player_factory: 玩家工厂方法，接受(name, position)参数
-            card_factory: 牌组工厂方法，返回完整牌组
+            factory: 游戏组件工厂，如果为None则使用默认CLI工厂
         """
         self.players = []
         self.deck = []
         self.current_dealer_index = 0
-        self.current_round_plays = {}  # {player: cards}
+        self.current_round_plays = {}  # {player: cards} - 与原版保持一致
         self.game_over = False
         
-        # 保存工厂方法
-        self._player_factory = player_factory
-        self._card_factory = card_factory
-        
-        # 如果没有提供工厂方法，使用默认实现
-        if not self._player_factory or not self._card_factory:
-            self._setup_default_factories()
+        # 设置工厂
+        if factory is None:
+            from abstract_factory import CLIGameFactory
+            self._factory = CLIGameFactory()
+        else:
+            self._factory = factory
         
         # 创建四个玩家
         self._initialize_players()
     
-    def _setup_default_factories(self):
-        """设置默认的工厂方法（CLI实现）"""
-        if not self._player_factory:
-            from player import Player
-            self._player_factory = Player
-        
-        if not self._card_factory:
-            from card import Card
-            self._card_factory = Card.create_deck
+    @property
+    def factory(self) -> 'AbstractGameFactory':
+        """获取当前使用的工厂"""
+        return self._factory
     
     def _initialize_players(self):
-        """初始化玩家"""
-        self.players.append(self._player_factory("真实玩家", self.POSITIONS[0]))
+        """使用工厂初始化玩家"""
+        self.players.append(self._factory.create_player("真实玩家", self.POSITIONS[0]))
         for i in range(1, self.PLAYER_COUNT):
-            self.players.append(self._player_factory(f"AI玩家{i}", self.POSITIONS[i]))
+            self.players.append(self._factory.create_player(f"AI玩家{i}", self.POSITIONS[i]))
     
     def reset_game(self):
         """重置游戏状态"""
@@ -100,8 +85,8 @@ class GameCore:
         self.players[self.current_dealer_index].is_dealer = True
     
     def _create_and_shuffle_deck(self):
-        """创建并洗牌"""
-        self.deck = self._card_factory()
+        """使用工厂创建并洗牌"""
+        self.deck = self._factory.create_deck()
         random.shuffle(self.deck)
     
     def _deal_cards(self):
@@ -153,7 +138,7 @@ class GameCore:
                 max_value = max(max_value, max(card.value for card in cards))
         return max_value
     
-    def validate_play(self, player: AbstractPlayer, selected_cards: List[AbstractCard], requirements: Dict) -> bool:
+    def validate_play(self, player: 'AbstractPlayer', selected_cards: List['AbstractCard'], requirements: Dict) -> bool:
         """验证出牌是否有效"""
         if not selected_cards:
             return False
@@ -165,14 +150,14 @@ class GameCore:
         # 后续出牌者
         return self._validate_follower_play(player, selected_cards, requirements)
     
-    def _validate_first_player_play(self, selected_cards: List[AbstractCard]) -> bool:
+    def _validate_first_player_play(self, selected_cards: List['AbstractCard']) -> bool:
         """验证第一个出牌者的出牌"""
         # 检查是否为1-4张相同点数的牌
         if not (1 <= len(selected_cards) <= 4):
             return False
         return len(set(card.value for card in selected_cards)) <= 1
     
-    def _validate_follower_play(self, player: AbstractPlayer, selected_cards: List[AbstractCard], requirements: Dict) -> bool:
+    def _validate_follower_play(self, player: 'AbstractPlayer', selected_cards: List['AbstractCard'], requirements: Dict) -> bool:
         """验证后续出牌者的出牌"""
         if len(selected_cards) != requirements['required_count']:
             return False
@@ -186,7 +171,7 @@ class GameCore:
         
         return any(set(play) == set(selected_cards) for play in available_plays)
     
-    def execute_play(self, player: AbstractPlayer, selected_cards: List[AbstractCard]) -> bool:
+    def execute_play(self, player: 'AbstractPlayer', selected_cards: List['AbstractCard']) -> bool:
         """
         执行出牌
         
@@ -205,7 +190,7 @@ class GameCore:
             print(f"出牌执行失败: {e}")
             return False
     
-    def determine_winner(self, round_plays: Dict[AbstractPlayer, List[AbstractCard]]) -> Optional[AbstractPlayer]:
+    def determine_winner(self, round_plays: Dict['AbstractPlayer', List['AbstractCard']]) -> Optional['AbstractPlayer']:
         """
         判断回合胜者
         当有多个玩家出相同最大点数时，先出牌者获胜
@@ -237,7 +222,7 @@ class GameCore:
         else:
             return self._determine_winner_normal(valid_plays)
     
-    def _determine_winner_with_same_card_priority(self, valid_plays: Dict[AbstractPlayer, List[AbstractCard]]) -> Optional[AbstractPlayer]:
+    def _determine_winner_with_same_card_priority(self, valid_plays: Dict['AbstractPlayer', List['AbstractCard']]) -> Optional['AbstractPlayer']:
         """
         当领牌者出多张相同牌时的胜负判定
         优先级：相同牌 > 混合牌，相同优先级内按点数和出牌顺序
@@ -274,7 +259,7 @@ class GameCore:
         
         return None
     
-    def _determine_winner_normal(self, valid_plays: Dict[AbstractPlayer, List[AbstractCard]]) -> Optional[AbstractPlayer]:
+    def _determine_winner_normal(self, valid_plays: Dict['AbstractPlayer', List['AbstractCard']]) -> Optional['AbstractPlayer']:
         """
         正常的胜负判定（领牌者未出多张相同牌时）
         """
@@ -298,7 +283,7 @@ class GameCore:
         
         return winner
     
-    def end_round(self, winner: AbstractPlayer, round_plays: Dict[AbstractPlayer, List[AbstractCard]]):
+    def end_round(self, winner: 'AbstractPlayer', round_plays: Dict['AbstractPlayer', List['AbstractCard']]):
         """结束回合，处理获得的牌和分数"""
         # 胜者获得自己出的牌
         winner_cards = []
