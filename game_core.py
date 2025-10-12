@@ -15,6 +15,13 @@ class GameCore:
     不包含任何UI相关代码
     """
     
+    # 游戏常量
+    PLAYER_COUNT = 4
+    CARDS_PER_PLAYER = 10
+    POSITIONS = ['东', '南', '西', '北']
+    MANAGE_CARD_THRESHOLD = 8  # 管牌最低要求
+    THIRD_PLAYER_INDEX = 2  # 第3个出牌者需要管牌
+    
     def __init__(self):
         """初始化游戏"""
         self.players = []
@@ -24,10 +31,13 @@ class GameCore:
         self.game_over = False
         
         # 创建四个玩家
-        positions = ['东', '南', '西', '北']
-        self.players.append(Player("真实玩家", positions[0]))
-        for i in range(1, 4):
-            self.players.append(Player(f"AI玩家{i}", positions[i]))
+        self._initialize_players()
+    
+    def _initialize_players(self):
+        """初始化玩家"""
+        self.players.append(Player("真实玩家", self.POSITIONS[0]))
+        for i in range(1, self.PLAYER_COUNT):
+            self.players.append(Player(f"AI玩家{i}", self.POSITIONS[i]))
     
     def reset_game(self):
         """重置游戏状态"""
@@ -41,20 +51,26 @@ class GameCore:
     
     def setup_new_game(self):
         """设置新游戏（发牌等）"""
-        # 随机选择庄家
-        self.current_dealer_index = random.randint(0, 3)
+        self._select_dealer()
+        self._create_and_shuffle_deck()
+        self._deal_cards()
+    
+    def _select_dealer(self):
+        """选择庄家"""
+        self.current_dealer_index = random.randint(0, self.PLAYER_COUNT - 1)
+        # 重置所有玩家的庄家状态
+        for player in self.players:
+            player.is_dealer = False
         self.players[self.current_dealer_index].is_dealer = True
-        
-        # 创建并洗牌
+    
+    def _create_and_shuffle_deck(self):
+        """创建并洗牌"""
         self.deck = Card.create_deck()
         random.shuffle(self.deck)
-        
-        # 发牌
-        self.deal_cards()
     
-    def deal_cards(self):
+    def _deal_cards(self):
         """发牌，每人10张"""
-        for i in range(10):
+        for i in range(self.CARDS_PER_PLAYER):
             for player in self.players:
                 if self.deck:
                     player.take_cards([self.deck.pop()])
@@ -63,67 +79,95 @@ class GameCore:
         """检查游戏是否结束（所有玩家手牌都出完）"""
         return all(len(player.hand_cards) == 0 for player in self.players) or self.game_over
     
-    def get_round_requirements(self, round_plays: Dict):
+    def get_round_requirements(self, round_plays: Dict) -> Dict:
         """获取当前回合的出牌要求"""
         if not round_plays:
-            # 第一个出牌者，可以自由选择
-            return {
-                'required_count': None,  # 可以选择1-4张
-                'must_manage': False,
-                'min_required_value': 1
-            }
+            return self._get_first_player_requirements()
         
-        # 后续出牌者要求
+        return self._get_follower_requirements(round_plays)
+    
+    def _get_first_player_requirements(self) -> Dict:
+        """第一个出牌者的要求"""
+        return {
+            'required_count': None,  # 可以选择1-4张
+            'must_manage': False,
+            'min_required_value': 1
+        }
+    
+    def _get_follower_requirements(self, round_plays: Dict) -> Dict:
+        """后续出牌者的要求"""
         first_play = list(round_plays.values())[0]
         required_count = len(first_play)
-        must_manage = len(round_plays) == 2  # 第3个出牌者需要管牌
+        must_manage = len(round_plays) == self.THIRD_PLAYER_INDEX  # 第3个出牌者需要管牌
         
         # 计算最小要求点数（与game.py保持一致）
-        max_value = 0
-        for cards in round_plays.values():
-            if cards:  # 确保牌列表不为空
-                max_value = max(max_value, max(card.value for card in cards))
-        min_required_value = max_value  # 改为与game.py一致
+        max_value = self._calculate_max_value_in_round(round_plays)
         
         return {
             'required_count': required_count,
             'must_manage': must_manage,
-            'min_required_value': min_required_value
+            'min_required_value': max_value
         }
+    
+    def _calculate_max_value_in_round(self, round_plays: Dict) -> int:
+        """计算当前回合的最大牌值"""
+        max_value = 0
+        for cards in round_plays.values():
+            if cards:  # 确保牌列表不为空
+                max_value = max(max_value, max(card.value for card in cards))
+        return max_value
     
     def validate_play(self, player: Player, selected_cards: List[Card], requirements: Dict) -> bool:
         """验证出牌是否有效"""
         if not selected_cards:
             return False
-            
-        required_count = requirements['required_count']
-        must_manage = requirements['must_manage']
-        min_required_value = requirements['min_required_value']
         
         # 如果是第一个出牌者
-        if required_count is None:
-            # 检查是否为1-4张相同点数的牌
-            if len(selected_cards) < 1 or len(selected_cards) > 4:
-                return False
-            if len(set(card.value for card in selected_cards)) > 1:
-                return False
-            return True
+        if requirements['required_count'] is None:
+            return self._validate_first_player_play(selected_cards)
         
         # 后续出牌者
-        if len(selected_cards) != required_count:
+        return self._validate_follower_play(player, selected_cards, requirements)
+    
+    def _validate_first_player_play(self, selected_cards: List[Card]) -> bool:
+        """验证第一个出牌者的出牌"""
+        # 检查是否为1-4张相同点数的牌
+        if not (1 <= len(selected_cards) <= 4):
+            return False
+        return len(set(card.value for card in selected_cards)) <= 1
+    
+    def _validate_follower_play(self, player: Player, selected_cards: List[Card], requirements: Dict) -> bool:
+        """验证后续出牌者的出牌"""
+        if len(selected_cards) != requirements['required_count']:
             return False
             
-        # 获取可选方案
-        available_plays = player.get_available_plays(required_count, must_manage, min_required_value)
+        # 获取可选方案并检查选择是否有效
+        available_plays = player.get_available_plays(
+            requirements['required_count'], 
+            requirements['must_manage'], 
+            requirements['min_required_value']
+        )
         
-        # 检查选择的牌是否在可选方案中
         return any(set(play) == set(selected_cards) for play in available_plays)
     
-    def execute_play(self, player: Player, selected_cards: List[Card]):
-        """执行出牌"""
-        player.play_cards(selected_cards)
-        print(f"{player.name} 出牌: {', '.join(str(card) for card in selected_cards)}")
-        self.current_round_plays[player] = selected_cards
+    def execute_play(self, player: Player, selected_cards: List[Card]) -> bool:
+        """
+        执行出牌
+        
+        Returns:
+            bool: 是否成功执行出牌
+        """
+        if not selected_cards:
+            return False
+            
+        try:
+            player.play_cards(selected_cards)
+            print(f"{player.name} 出牌: {', '.join(str(card) for card in selected_cards)}")
+            self.current_round_plays[player] = selected_cards
+            return True
+        except Exception as e:
+            print(f"出牌执行失败: {e}")
+            return False
     
     def determine_winner(self, round_plays: Dict[Player, List[Card]]) -> Optional[Player]:
         """
