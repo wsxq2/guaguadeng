@@ -3,7 +3,7 @@
 表示游戏中的玩家，基于抽象基类的CLI实现
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import List, Dict, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -391,6 +391,14 @@ class HumanPlayer(Player):
         """返回玩家的字符串表示"""
         dealer_mark = "🎯" if self.is_dealer else ""
         return f"{self.name}({self.position}){dealer_mark} (真人) - 分数: {self.score}"
+
+    def ai_choose_cards(self, required_count: int = None, must_manage: bool = False, min_required_value: int = None) -> List['AbstractCard']:
+        """
+        为了兼容 GUI 的提示与自动出牌，给 HumanPlayer 提供一个简单的建议方法。
+        该方法不会真正替代玩家决策，仅返回第一个可用的出牌方案（如果存在）。
+        """
+        available_plays = self.get_available_plays(required_count, must_manage, min_required_value)
+        return available_plays[0] if available_plays else []
     
 
 class AiPlayer(Player):
