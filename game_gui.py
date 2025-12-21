@@ -55,464 +55,16 @@ class GUIConfig:
     CARD_SUIT_FONT_SIZE = 12
     CARD_VALUE_FONT_SIZE = 14
 
-
-class CardWidget(QFrame):
-    """卡牌显示组件"""
-    
-    card_clicked = Signal(object)  # 发送被点击的卡牌
-    
-    def __init__(self, card: Card, clickable: bool = True, display_mode: str = 'full'):
-        super().__init__()
-        self.card = card
-        self.clickable = clickable
-        self.selected = False
-        self.display_mode = display_mode  # 'full' or 'compact'
-        self.setup_ui()
-        
-    def setup_ui(self):
-        """设置UI"""
-        # 支持紧凑显示（只显示卡角）
-        if self.display_mode == 'compact':
-            compact_w = max(18, int(GUIConfig.CARD_WIDTH * 0.35))
-            compact_h = max(30, int(GUIConfig.CARD_HEIGHT * 1.0))
-            self.setFixedSize(compact_w, compact_h)
-        else:
-            self.setFixedSize(GUIConfig.CARD_WIDTH, GUIConfig.CARD_HEIGHT)
-        self.setFrameStyle(QFrame.Box)
-        self.setLineWidth(2)
-        
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        
-        # 数值标签（显示在上方）
-        value_label = QLabel(str(self.card.value))
-        value_label.setAlignment(Qt.AlignCenter)
-        value_font = QFont()
-        value_font.setPointSize(GUIConfig.CARD_VALUE_FONT_SIZE)
-        value_font.setBold(True)
-        value_label.setFont(value_font)
-
-        # 花色标签（显示在下方）
-        suit_label = QLabel(self.card.suit)
-        suit_label.setAlignment(Qt.AlignCenter)
-        suit_font = QFont()
-        suit_font.setPointSize(GUIConfig.CARD_SUIT_FONT_SIZE)
-        suit_font.setBold(True)
-        suit_label.setFont(suit_font)
-        # 设置花色颜色
-        if self.card.suit in ['♥', '♦']:
-            suit_label.setStyleSheet("color: red;")
-        else:
-            suit_label.setStyleSheet("color: black;")
-
-        layout.addWidget(value_label)
-        layout.addWidget(suit_label)
-        self.setLayout(layout)
-        
-        # 设置样式
-        self.update_style()
-        
-    def update_style(self):
-        """更新卡牌样式"""
-        if self.selected:
-            self.setStyleSheet("""
-                CardWidget {
-                    background-color: lightblue;
-                    border: 2px solid blue;
-                    border-radius: 5px;
-                }
-            """)
-        elif self.clickable:
-            self.setStyleSheet("""
-                CardWidget {
-                    background-color: white;
-                    border: 1px solid gray;
-                    border-radius: 5px;
-                }
-                CardWidget:hover {
-                    background-color: lightgray;
-                    border: 2px solid darkgray;
-                }
-            """)
-        else:
-            self.setStyleSheet("""
-                CardWidget {
-                    background-color: #f0f0f0;
-                    border: 1px solid gray;
-                    border-radius: 5px;
-                }
-            """)
-    
-    def mousePressEvent(self, event):
-        """鼠标点击事件"""
-        if self.clickable and event.button() == Qt.LeftButton:
-            self.selected = not self.selected
-            self.update_style()
-            self.card_clicked.emit(self.card)
-    
-    def set_selected(self, selected: bool):
-        """设置选中状态"""
-        self.selected = selected
-        self.update_style()
+# 替换为基于UI的PlayerArea
+from player_area import PlayerArea
 
 
-class PlayerAreaWidget(QWidget):
-    """紧凑的玩家信息面板（用于左右和顶部玩家）
-
-    显示：圆形 initials 头像、昵称、分数、手牌数量、当前回合出的牌（最多 4 张）和回合倒计时（仅在该玩家出牌时可见）。
-    """
-
-    def __init__(self, player_info: Dict, is_current_player: bool = False):
-        super().__init__()
-        self.player_info = player_info or {}
-        self.is_current_player = is_current_player
-        self.card_widgets = []
-        self.setup_ui()
-
-    def setup_ui(self):
-        layout = QVBoxLayout()
-        layout.setContentsMargins(6, 6, 6, 6)
-        layout.setSpacing(4)
-
-        # 顶部：头像 + 名称/分数
-        top_row = QHBoxLayout()
-        self.avatar = QLabel()
-        self.avatar.setFixedSize(44, 44)
-        self.avatar.setAlignment(Qt.AlignCenter)
-        self.avatar.setStyleSheet("border-radius: 22px; background-color: #e8e8ff; font-weight: bold; font-size: 14px;")
-        top_row.addWidget(self.avatar)
-
-        name_col = QVBoxLayout()
-        self.name_label = QLabel(self.player_info.get('name', ''))
-        self.name_label.setAlignment(Qt.AlignLeft)
-        self.name_label.setStyleSheet("font-weight: bold;")
-        name_col.addWidget(self.name_label)
-
-        self.score_label = QLabel(f"分数: {self.player_info.get('score', 0)}")
-        self.score_label.setAlignment(Qt.AlignLeft)
-        name_col.addWidget(self.score_label)
-
-        top_row.addLayout(name_col)
-        top_row.addStretch()
-        layout.addLayout(top_row)
-
-        # 手牌数量与本回合出牌预览
-        mid_row = QHBoxLayout()
-        self.hand_count_label = QLabel(f"手牌: {self.player_info.get('hand_count', 0)}")
-        mid_row.addWidget(self.hand_count_label)
-
-        # played cards preview (最多显示4张小卡片)
-        self.played_container = QWidget()
-        pc_layout = QHBoxLayout()
-        pc_layout.setContentsMargins(0, 0, 0, 0)
-        pc_layout.setSpacing(4)
-        self.played_container.setLayout(pc_layout)
-        mid_row.addWidget(self.played_container)
-        mid_row.addStretch()
-        layout.addLayout(mid_row)
-
-        # 已获得的牌（胜出）小图展示
-        won_row = QHBoxLayout()
-        won_label = QLabel("已获:")
-        won_label.setAlignment(Qt.AlignLeft)
-        won_row.addWidget(won_label)
-        self.won_container = QWidget()
-        won_layout = QHBoxLayout()
-        won_layout.setContentsMargins(0, 0, 0, 0)
-        won_layout.setSpacing(2)
-        self.won_container.setLayout(won_layout)
-        won_row.addWidget(self.won_container)
-        layout.addLayout(won_row)
-
-        # 倒计时标签（仅在该玩家出牌时可见）
-        self.countdown_label = QLabel("")
-        self.countdown_label.setAlignment(Qt.AlignCenter)
-        self.countdown_label.setStyleSheet("color: orange; font-weight: bold;")
-        self.countdown_label.setVisible(False)
-        layout.addWidget(self.countdown_label)
-
-        self.setLayout(layout)
-        self.update_style()
-
-    def update_style(self):
-        if self.is_current_player:
-            self.setStyleSheet("background-color: #f7fbff; border: 1px solid #8ab4ff; border-radius: 6px;")
-        else:
-            self.setStyleSheet("background-color: transparent; border: 1px solid rgba(0,0,0,0.05); border-radius: 4px;")
-
-    def set_player_info(self, player_info: Dict, is_current: bool = False):
-        self.player_info = player_info or {}
-        self.is_current_player = is_current
-        # initials
-        name = self.player_info.get('name', '')
-        parts = name.split()
-        initials = ''.join([p[0].upper() for p in parts if p])[:2]
-        if not initials and name:
-            initials = name[:2].upper()
-        self.avatar.setText(initials)
-        self.name_label.setText(name)
-        self.score_label.setText(f"分数: {self.player_info.get('score', 0)}")
-        self.hand_count_label.setText(f"手牌: {self.player_info.get('hand_count', 0)}")
-        self.update_style()
-
-    def update_played_cards(self, cards: List[Card]):
-        # 清除现有小卡牌
-        layout = self.played_container.layout()
-        while layout.count():
-            it = layout.takeAt(0)
-            if it.widget():
-                it.widget().deleteLater()
-
-        self.card_widgets.clear()
-        if not cards:
-            return
-
-        for card in cards[:4]:
-            cw = CardWidget(card, clickable=False, display_mode='compact')
-            cw.setFixedSize(28, 40)
-            layout.addWidget(cw)
-            self.card_widgets.append(cw)
-
-    def set_won_cards(self, cards: List[Card]):
-        # 清除已有
-        layout = self.won_container.layout()
-        while layout.count():
-            it = layout.takeAt(0)
-            if it.widget():
-                it.widget().deleteLater()
-
-        if not cards:
-            return
-
-        # 仅显示最多 10 张缩略已获牌
-        for card in cards[:10]:
-            cw = CardWidget(card, clickable=False, display_mode='compact')
-            #cw.setFixedSize(20, 28)
-            layout.addWidget(cw)
-
-    def show_countdown(self, seconds: int):
-        self.countdown_label.setText(f"⏱ {seconds}s")
-        self.countdown_label.setVisible(True)
-
-    def hide_countdown(self):
-        self.countdown_label.setVisible(False)
 
 
-class PlayerInfoWidget(QWidget):
-    """底部左侧玩家信息（avatar initials, name, score）"""
 
-    def __init__(self):
-        super().__init__()
-        self.setup_ui()
-
-    def setup_ui(self):
-        # 略微缩小宽度以靠近手牌区域，适配移动屏幕
-        self.setFixedWidth(140)
-        layout = QVBoxLayout()
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setAlignment(Qt.AlignTop)
-
-        # 头像（圆形 initials）
-        self.avatar = QLabel()
-        self.avatar.setFixedSize(56, 56)
-        self.avatar.setAlignment(Qt.AlignCenter)
-        self.avatar.setStyleSheet(
-            "border-radius: 28px; background-color: #ddddff; font-weight: bold; font-size: 18px;"
-        )
-        layout.addWidget(self.avatar)
-
-        # 名称与分数
-        self.name_label = QLabel("Player")
-        self.name_label.setAlignment(Qt.AlignLeft)
-        layout.addWidget(self.name_label)
-
-        self.score_label = QLabel("分数: 0")
-        self.score_label.setAlignment(Qt.AlignLeft)
-        layout.addWidget(self.score_label)
-
-        layout.addStretch()
-        self.setLayout(layout)
-
-    def set_player(self, player):
-        if not player:
-            self.avatar.setText("")
-            self.name_label.setText("")
-            self.score_label.setText("")
-            return
-
-        # initials
-        parts = player.name.split()
-        initials = ''.join([p[0].upper() for p in parts if p])[:2]
-        if not initials:
-            initials = player.name[:2].upper()
-        self.avatar.setText(initials)
-        self.name_label.setText(player.name)
-        self.score_label.setText(f"分数: {player.score}")
-
-
-class HandCardsWidget(QWidget):
-    """手牌显示组件"""
-    
-    cards_selected = Signal(list)  # 发送选中的卡牌列表
-    
-    def __init__(self):
-        super().__init__()
-        self.card_widgets = []
-        self.selected_cards = []
-        self.overlap_ratio = 0.3  # 露出比例
-        self.show_full_right = 1  # 最右侧完整显示数量
-        # 允许弹起一定高度，避免被容器裁剪
-        self.pop_offset = 18
-        total_h = GUIConfig.HAND_AREA_HEIGHT + self.pop_offset
-        self.setFixedHeight(total_h)
-        self.setMinimumHeight(total_h)
-        self.setMaximumHeight(total_h)
-        self.setMouseTracking(True)
-        self.setup_ui()
-        
-    def setup_ui(self):
-        """设置UI"""
-        # 使用绝对定位来实现重叠手牌
-        self.setLayout(QVBoxLayout())
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.container = QWidget(self)
-        self.container.setGeometry(0, 0, self.width(), self.height())
-        self.container.setAttribute(Qt.WA_TransparentForMouseEvents, False)
-        
-    def update_cards(self, cards: List[Card]):
-        """更新手牌显示"""
-        # 清除现有组件
-        for widget in self.card_widgets:
-            widget.setParent(None)
-            widget.deleteLater()
-        self.card_widgets.clear()
-        self.selected_cards.clear()
-
-        if not cards:
-            return
-
-        # 计算重叠偏移
-        total = len(cards)
-        card_w = GUIConfig.CARD_WIDTH
-        overlap_w = max(6, int(card_w * self.overlap_ratio))
-        _ = card_w + overlap_w * (total - 1)
-
-        # 在container中放置卡牌
-        for i, card in enumerate(cards):
-            mode = 'full' if i >= total - self.show_full_right else 'compact'
-
-            card_widget = CardWidget(card, clickable=True, display_mode=mode)
-            card_widget.setParent(self.container)
-            card_widget.card_clicked.connect(self._on_card_clicked)
-
-            x = i * overlap_w
-            y = self.pop_offset
-            card_widget.move(x, y)
-            card_widget.show()
-            self.card_widgets.append(card_widget)
-        # end for
-
-    def _on_card_clicked(self, card: Card):
-        """处理卡牌点击（连接来自 CardWidget.card_clicked）"""
-        # 找到对应 widget
-        widget = None
-        for w in self.card_widgets:
-            if w.card == card:
-                widget = w
-                break
-
-        if widget is None:
-            return
-
-        if card in self.selected_cards:
-            # 取消选中
-            try:
-                self.selected_cards.remove(card)
-            except ValueError:
-                pass
-            widget.set_selected(False)
-            widget.move(widget.x(), self.pop_offset)
-        else:
-            # 选中
-            self.selected_cards.append(card)
-            widget.set_selected(True)
-            widget.move(widget.x(), 0)
-
-        # 发出信号
-        self.cards_selected.emit(self.selected_cards[:])
-        
-    def clear_selection(self):
-        """清除选择"""
-        self.selected_cards.clear()
-        for widget in self.card_widgets:
-            widget.set_selected(False)
-            widget.move(widget.x(), self.pop_offset)
-        self.cards_selected.emit([])
-
-
-class PlayAreaWidget(QWidget):
-    """简洁的中央出牌区：显示当前出牌信息（玩家名 + 卡牌预览）。
-
-    之前的 2x2 网格被移除，中央只保留一个展示区，避免界面重复的框。
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.setup_ui()
-
-    def setup_ui(self):
-        layout = QVBoxLayout()
-        layout.setContentsMargins(8, 8, 8, 8)
-
-        title = QLabel("🎯 出牌区")
-        title.setAlignment(Qt.AlignCenter)
-        title_font = QFont()
-        title_font.setPointSize(16)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        layout.addWidget(title)
-
-        self.info_label = QLabel("")
-        self.info_label.setAlignment(Qt.AlignCenter)
-        self.info_label.setWordWrap(True)
-        layout.addWidget(self.info_label, stretch=1)
-
-        self.cards_container = QWidget()
-        self.cards_layout = QHBoxLayout()
-        self.cards_layout.setAlignment(Qt.AlignCenter)
-        self.cards_container.setLayout(self.cards_layout)
-        layout.addWidget(self.cards_container)
-
-        self.setLayout(layout)
-
-    def update_play(self, player_position: str, cards: List[Card]):
-        """在中央区域显示某玩家的出牌（覆盖旧显示）。"""
-        # 更新文本信息
-        if cards:
-            cards_str = ', '.join(str(c) for c in cards)
-            self.info_label.setText(f"{player_position} 出牌: {cards_str}")
-        else:
-            self.info_label.setText(f"{player_position}: 跳过")
-
-        # 清除旧卡牌小图
-        while self.cards_layout.count():
-            it = self.cards_layout.takeAt(0)
-            if it.widget():
-                it.widget().deleteLater()
-
-        # 显示卡牌小图
-        for card in cards:
-            cw = CardWidget(card, clickable=False, display_mode='compact')
-            cw.setFixedSize(36, 48)
-            self.cards_layout.addWidget(cw)
-
-    def clear_all_plays(self):
-        self.info_label.setText("")
-        while self.cards_layout.count():
-            it = self.cards_layout.takeAt(0)
-            if it.widget():
-                it.widget().deleteLater()
-
+# 独立模块导入
+from hand_cards_widget import HandCardsWidget
+from card_widget import CardWidget
 
 class GameGUI(QMainWindow):
     """游戏主界面"""
@@ -574,7 +126,7 @@ class GameGUI(QMainWindow):
         game_area.setLayout(game_layout)
 
         # 左侧：左侧玩家面板（紧凑）
-        self.left_player_widget = PlayerAreaWidget({}, False)
+        self.left_player_widget = PlayerArea()
         left_panel = QWidget()
         left_layout = QVBoxLayout()
         left_layout.setContentsMargins(0, 0, 0, 0)
@@ -590,12 +142,9 @@ class GameGUI(QMainWindow):
         center_col = QWidget()
         center_col_layout = QVBoxLayout()
         center_col_layout.setContentsMargins(0, 0, 0, 0)
-        self.top_player_widget = PlayerAreaWidget({}, False)
+        self.top_player_widget = PlayerArea()
         # 顶部玩家水平居中
         center_col_layout.addWidget(self.top_player_widget, alignment=Qt.AlignHCenter)
-        # 保留 play_area 对象并将其可视化为紧凑的出牌展示区
-        self.play_area = PlayAreaWidget()
-        self.play_area.setMaximumHeight(140)
         # 全局控制区：新游戏、暂停/继续
         control_panel = QWidget()
         cp_layout = QHBoxLayout()
@@ -626,9 +175,8 @@ class GameGUI(QMainWindow):
 
         center_col_layout.addWidget(control_panel)
         # 可见的出牌区（显示最新出牌）
-        # center_col_layout.addWidget(self.play_area)
-        # center_col.setLayout(center_col_layout)
-        # game_layout.addWidget(center_col, stretch=1)
+        center_col.setLayout(center_col_layout)
+        game_layout.addWidget(center_col, stretch=1)
 
         # 右侧：游戏信息和控制
         control_area = QWidget()
@@ -651,15 +199,11 @@ class GameGUI(QMainWindow):
         self.play_button.setEnabled(False)
         self.play_button.clicked.connect(self.on_play_cards)
 
-        self.pass_button = QPushButton("跳过")
-        self.pass_button.setEnabled(False)
-        self.pass_button.clicked.connect(self.on_pass_turn)
-
         self.new_game_button = QPushButton("新游戏")
         self.new_game_button.clicked.connect(self.start_new_game)
 
         # 右侧：右侧玩家（保留玩家面板并将控制区移除以简化布局）
-        self.right_player_widget = PlayerAreaWidget({}, False)
+        self.right_player_widget = PlayerArea()
         right_col = QWidget()
         right_col_layout = QVBoxLayout()
         right_col_layout.setContentsMargins(0, 0, 0, 0)
@@ -681,7 +225,7 @@ class GameGUI(QMainWindow):
         hand_area.setLayout(hand_outer_layout)
 
         # 左侧玩家信息
-        self.bottom_player_info = PlayerInfoWidget()
+        self.bottom_player_info = PlayerArea()
         hand_outer_layout.addWidget(self.bottom_player_info)
 
         # 右侧：控制条与手牌（垂直布局）
@@ -718,7 +262,7 @@ class GameGUI(QMainWindow):
         # 手牌容器（紧凑）
         hand_scroll = QScrollArea()
         hand_scroll.setFixedHeight(GUIConfig.HAND_AREA_HEIGHT + self.hand_cards.pop_offset if hasattr(self, 'hand_cards') else GUIConfig.HAND_AREA_HEIGHT + 18)
-        self.hand_cards = HandCardsWidget()
+        self.hand_cards = HandCardsWidget(hand_area_height=GUIConfig.HAND_AREA_HEIGHT)
         self.hand_cards.cards_selected.connect(self.on_cards_selected)
         hand_scroll.setWidget(self.hand_cards)
         hand_scroll.setWidgetResizable(True)
@@ -751,7 +295,6 @@ class GameGUI(QMainWindow):
         try:
             self.update_players_display()
             self.update_hand_cards()
-            self.play_area.clear_all_plays()
             
             players_info = self.game_core.get_players_info()
             dealer_name = None
@@ -823,12 +366,13 @@ class GameGUI(QMainWindow):
         # bottom (human)
         human = next((p for p in players_info if p.get('is_human', False)), None)
         if human:
-            # find human player object to set bottom_player_info
-            human_player = self.game_core.get_human_player()
-            if hasattr(self, 'bottom_player_info') and human_player:
-                self.bottom_player_info.set_player(human_player)
-                # bottom player's won cards could be shown in bottom panel if desired
-                # keep bottom_player_info minimal for now
+            p = human
+            self.bottom_player_info.set_player_info(p, (players_info.index(p) == self.current_player_index))
+            played = current_plays.get(p.get('position'), []) if current_plays else []
+            self.bottom_player_info.update_played_cards(played)
+            player_obj = self.game_core.get_player_by_index(p.get('index'))
+            if player_obj:
+                self.bottom_player_info.set_won_cards(player_obj.won_cards)
 
         # 倒计时显示：只在当前玩家面板显示
         current = players_info[self.current_player_index] if players_info else None
@@ -836,29 +380,19 @@ class GameGUI(QMainWindow):
         self.left_player_widget.hide_countdown()
         self.top_player_widget.hide_countdown()
         self.right_player_widget.hide_countdown()
-        if current:
-            # show on the widget that matches current
-            if not current.get('is_human', False):
-                # find which other matches
-                for widget, p in ((self.left_player_widget, others[0] if len(others) > 0 else None),
-                                  (self.top_player_widget, others[1] if len(others) > 1 else None),
-                                  (self.right_player_widget, others[2] if len(others) > 2 else None)):
-                    if p and p.get('index') == self.current_player_index:
-                        widget.show_countdown(self._remaining_seconds)
-                        break
-            else:
-                # human
-                if hasattr(self, 'bottom_player_info'):
-                    # bottom uses clock_label for display; keep synchronization elsewhere
-                    pass
+        # find which other matches
+        for widget, p in ((self.left_player_widget, others[0] if len(others) > 0 else None),
+                          (self.top_player_widget, others[1] if len(others) > 1 else None),
+                          (self.right_player_widget, others[2] if len(others) > 2 else None),
+                          (self.bottom_player_info, human if human else None)):
+            if p and p.get('index') == self.current_player_index:
+                widget.show_countdown(self._remaining_seconds)
+                break
             
     def update_hand_cards(self):
         """更新手牌显示"""
         human_player = self.game_core.get_human_player()
         if human_player:
-            # 更新底部玩家信息
-            if hasattr(self, 'bottom_player_info'):
-                self.bottom_player_info.set_player(human_player)
             self.hand_cards.update_cards(human_player.hand_cards)
             
     def start_new_round(self):
@@ -867,7 +401,6 @@ class GameGUI(QMainWindow):
             self.show_game_over()
             return
             
-        self.play_area.clear_all_plays()
         self.game_core.current_round_plays.clear()
         self.current_player_index = self.current_leader_index
         
@@ -925,8 +458,6 @@ class GameGUI(QMainWindow):
         self.play_button.setEnabled(False)
         self.play_button_bottom.setEnabled(True)
         self.hint_button.setEnabled(True)
-        # 规则不允许跳过，禁用pass按钮 (保留右侧控制区的pass为历史/备用)
-        self.pass_button.setEnabled(False)
 
         # 启动倒计时
         self._remaining_seconds = self.turn_seconds
@@ -965,8 +496,6 @@ class GameGUI(QMainWindow):
             # 执行出牌
             success = self.game_core.execute_play(player, cards)
             if success:
-                self.play_area.update_play(player_info['position'], cards)
-                
                 cards_str = ', '.join(str(card) for card in cards)
                 self.round_info.append(f"{player_info['name']}: {cards_str}\n")
         else:
@@ -1016,30 +545,12 @@ class GameGUI(QMainWindow):
         
         # 更新界面
         _ = self.game_core.get_current_plays()
-        self.play_area.update_play(human_player.position, self.selected_cards)
         
         cards_str = ', '.join(str(card) for card in self.selected_cards)
         self.round_info.append(f"你: {cards_str}\n")
         
         # 更新显示
         self.update_hand_cards()
-        self.waiting_for_human_input = False
-        self.play_button.setEnabled(False)
-        self.play_button_bottom.setEnabled(False)
-        self.hint_button.setEnabled(False)
-        self.countdown_timer.stop()
-        self.clock_label.setText("")
-        
-        # 继续处理下一个玩家
-        QTimer.singleShot(500, self.process_next_player)
-        
-    def on_pass_turn(self):
-        """处理跳过按钮点击"""
-        if not self.waiting_for_human_input:
-            return
-            
-        self.round_info.append("你: 跳过\n")
-        
         self.waiting_for_human_input = False
         self.play_button.setEnabled(False)
         self.play_button_bottom.setEnabled(False)
@@ -1150,7 +661,7 @@ class GameGUI(QMainWindow):
                     self.on_play_cards()
                 else:
                     # 没有可出，强制跳过（尽管规则不允许，作为兜底）
-                    self.on_pass_turn()
+                    pass
             return
 
         self.clock_label.setText(f"⏱ {self._remaining_seconds}s")
@@ -1202,10 +713,6 @@ class GameGUI(QMainWindow):
             if winner_order:
                 self.round_info.append(f"出牌顺序第{winner_order}，在{len(tied_players)}个{max_value}点玩家中先出获胜\n")
         
-    def format_requirements(self, requirements: Dict) -> str:
-        """格式化出牌要求"""
-        return self.game_core.format_requirements_text(requirements)
-        
     def show_game_over(self):
         """显示游戏结束"""
         # 计算最终分数
@@ -1228,6 +735,9 @@ class GameGUI(QMainWindow):
 def main():
     """主函数"""
     app = QApplication(sys.argv)
+    # 允许 Ctrl+C 终止程序
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     
     # 设置应用样式
     app.setStyle('Fusion')
@@ -1245,8 +755,7 @@ def main():
     ]
     
     # 查找可用的字体
-    font_db = QFontDatabase()
-    available_fonts = font_db.families()
+    available_fonts = QFontDatabase.families()
     
     selected_font = "Arial"  # 默认字体
     for font_family in font_families:
@@ -1255,7 +764,7 @@ def main():
             break
     
     # 设置应用字体
-    app_font = QFont(selected_font, 10)
+    app_font = QFont(selected_font, 14)
     app.setFont(app_font)
     
     print(f"使用字体: {selected_font}")

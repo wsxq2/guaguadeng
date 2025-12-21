@@ -347,7 +347,8 @@ class GameCore:
                 'hand_count': len(player.hand_cards),
                 'won_count': len(player.won_cards),
                 'is_dealer': hasattr(player, 'is_dealer') and player.is_dealer,
-                'is_human': player.name == "真实玩家"
+                'is_human': player.name == "真实玩家",
+                'original_player': player
             }
             players_info.append(info)
         return players_info
