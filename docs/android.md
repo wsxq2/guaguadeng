@@ -3,6 +3,44 @@
 目标：用同一份 Python 核心和 QML 页面验证显示卡牌、触摸选牌、调用领牌规则。
 当前页面不执行完整对局。桌面无显示测试通过，不代表 Android 真机已验证。
 
+## 推荐：使用自动打包脚本
+
+从项目根目录运行（也可以从其他目录传入脚本绝对路径）：
+
+```bash
+.venv/bin/python tools/build_android.py
+```
+
+脚本自动查找 JDK 17，为构建子进程设置 `JAVA_HOME` / `PATH`，刷新源码，固定 Python 和 hostpython 为 3.11.9，允许横竖屏，使用 `.buildozer-py311` 缓存，并直接调用 Buildozer。不会更改系统默认 Java 或自动安装系统依赖。
+
+首次没有 Gradle 代理配置时，从终端 `https_proxy` / `http_proxy`（兼容大写）读取并写入 `~/.gradle/gradle.properties`；若设置了 `GRADLE_USER_HOME`，则使用该目录。已有代理默认保留。首次可明确指定本机代理：
+
+```bash
+.venv/bin/python tools/build_android.py --proxy http://172.18.208.1:7890
+```
+
+显式 `--proxy` 会更新代理字段，保留其他 Gradle 设置；修改前备份为 `gradle.properties.before-guaguadeng`（再次修改时更新备份）。此配置对该用户的其他 Gradle 构建也生效。不支持带账号密码的代理 URL，避免凭据意外保存。
+
+其他用法：
+
+```bash
+# 仅准备环境与配置，不编译 APK
+.venv/bin/python tools/build_android.py --prepare-only
+
+# 固定横屏
+.venv/bin/python tools/build_android.py --orientation landscape
+
+# 移除 Gradle 中的 HTTP(S) 代理设置
+.venv/bin/python tools/build_android.py --no-proxy
+
+# 自定义工具链路径
+.venv/bin/python tools/build_android.py --java-home /path/to/jdk17 --sdk /path/to/sdk --ndk /path/to/ndk
+```
+
+无现有 spec 或 recipes 时，脚本用当前 Python 环境的 PySide6 部署工具 `--init --keep-deployment-files` 初始化，再修正版本配置。首次仍需提前安装工具依赖、下载 SDK/NDK 和两份 Android wheels，详见下文；初始化可能联网安装部署依赖。当前脚本针对 Linux/WSL、PySide6 6.10.1 ARM64 验证版，不是通用多版本打包工具。
+
+日志写入 `build/android-preview/deploy-script.log`，同时显示在终端；构建返回码会原样传递。APK 路径在成功后列出。当前已验证已有环境的 `--prepare-only` 和配置单元测试；尚未通过该新脚本重新完整编译 APK，首次初始化路径也尚未端到端验证。
+
 ## 桌面运行
 
 ```bash
@@ -33,7 +71,7 @@ cd build/android-preview
 
 ## 已验证的构建环境
 
-2026-09-30，用户确认最小验证版 Android 构建成功。构建成功与真机运行验收分开记录，当前尚未收到真机验收结果。
+2026-09-30，用户确认最小验证版 Android 构建成功。构建成功与真机运行验收分开记录，后续真机启动验证和修复记录见文末。
 
 本次构建相关版本与配置：
 
@@ -196,3 +234,20 @@ python -m buildozer android debug 2>&1 | tee deploy-py311.log
 不要紧接着改用 `pyside6-android-deploy` 重建，否则该版本工具会重新生成未固定 Python 的 requirements。
 这项配置修复尚待重新构建与真机验证；若当前 develop 配方不能构建 3.11，需进一步固定兼容的 python-for-android 版本，不能把库文件改名伪装成 3.11。
 另外 `qml_files` 为空及 QML 插件收集仍需检查；解决本次链接错误不保证后续 QML 启动已通过。
+
+## 真机运行与横竖屏
+
+用户在固定 Python 3.11 后确认应用可以在手机运行。后续发现不能横屏，检查生成的 `buildozer.spec` 为 `orientation = portrait`，即固定竖屏。
+
+验证页改为允许横竖屏：
+
+```ini
+[app]
+orientation = landscape,portrait
+```
+
+本地 python-for-android 会将多个方向映射为 Manifest 中的 `unspecified`，允许系统决定方向。手机需要打开自动旋转；完整游戏若决定固定横屏，可改为 `orientation = landscape`。
+
+修改后直接使用 `python -m buildozer android debug` 重建并覆盖安装新 APK，无需删除 SDK/NDK 或 Python 缓存。不要重新运行会覆盖配置的 `pyside6-android-deploy`。方向属于 APK Manifest 配置，仅修改 QML 窗口宽高不能解除竖屏锁定。
+
+横竖屏配置修改后尚待真机复测。

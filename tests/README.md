@@ -8,7 +8,7 @@
 PYTHONPATH=src python -m unittest discover -s tests -v
 ```
 
-已安装可编辑包时可省略 `PYTHONPATH=src`。当前包含 42 个测试（含多组子测试）：
+已安装可编辑包时可省略 `PYTHONPATH=src`。当前包含 45 个测试（含多组子测试）：
 
 - 卡牌与牌组：输入范围、唯一性、不可变性。
 - 领牌：拆牌、数量、重复提交、手牌归属、输入不变。
@@ -50,3 +50,5 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 ## 可选 UI 测试
 
 `ui/test_preview.py` 检查选牌规则桥接及 QML 在横竖屏尺寸下加载。需要安装 `.[ui]`；无 PySide6 时跳过这两项，不影响核心测试。测试使用 offscreen 和软件渲染，不代替 Android 真机触摸与视觉验收。
+
+- `tools/test_build_android.py`：代理首次设置、已有配置保留与备份、拒绝含凭据 URL、构建版本固定及重复执行一致性。
