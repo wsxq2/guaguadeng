@@ -251,3 +251,13 @@ orientation = landscape,portrait
 修改后直接使用 `python -m buildozer android debug` 重建并覆盖安装新 APK，无需删除 SDK/NDK 或 Python 缓存。不要重新运行会覆盖配置的 `pyside6-android-deploy`。方向属于 APK Manifest 配置，仅修改 QML 窗口宽高不能解除竖屏锁定。
 
 横竖屏配置修改后尚待真机复测。
+
+## Redmi 横屏导航栏遮挡操作按钮
+
+真机截图显示 Redmi 底部手势导航区域遮住按钮，Pixel 7 未出现同样现象。
+布局修复：由 ApplicationWindow 统一处理安全区域，移除内容布局重复叠加的 SafeArea 边距；操作栏固定在可用内容区域底部，上方内容在高度不足时可滚动。
+
+依据：[Qt ApplicationWindow 安全区域说明](https://doc.qt.io/qt-6/qml-qtquick-controls-applicationwindow.html)。
+已通过模拟顶部、底部和侧边安全留白的按钮边界测试，覆盖最低 640×280 的窗口；尚需 Redmi 真机复测。如果系统没有正确上报导航栏区域，仍需收集设备的实际 inset 信息，不以固定机型偏移量代替。
+
+运行 `python tools/build_android.py` 刷新源码并重新打包，覆盖安装后检查横竖屏下两个按钮是否完整可见。
