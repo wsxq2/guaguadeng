@@ -1,4 +1,5 @@
 """正式桌面与 Android 牌桌入口。"""
+import os
 import sys
 from pathlib import Path
 
@@ -15,7 +16,15 @@ def main():
     engine = QQmlApplicationEngine()
     controller = GameController()
     app.aboutToQuit.connect(controller.endSession)
-    engine.setInitialProperties({'controller': controller})
+    initial_properties = {'controller': controller}
+    # 桌面调试用；可设置 GUAGUADENG_WINDOW_WIDTH/HEIGHT 模拟指定手机的逻辑分辨率。
+    width = os.environ.get('GUAGUADENG_WINDOW_WIDTH')
+    height = os.environ.get('GUAGUADENG_WINDOW_HEIGHT')
+    if width:
+        initial_properties['startWidth'] = int(width)
+    if height:
+        initial_properties['startHeight'] = int(height)
+    engine.setInitialProperties(initial_properties)
     engine.load(QUrl.fromLocalFile(str(Path(__file__).parent / 'qml' / 'Table.qml')))
     if not engine.rootObjects():
         return 1

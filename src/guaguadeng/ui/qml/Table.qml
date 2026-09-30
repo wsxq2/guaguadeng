@@ -5,8 +5,10 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: window
     required property var controller
-    width: 960
-    height: 640
+    property int startWidth: 960
+    property int startHeight: 640
+    width: startWidth
+    height: startHeight
     visibility: Qt.platform.os === "android" ? Window.FullScreen : Window.Windowed
     title: "刮刮登"
     color: "#103b32"
@@ -20,8 +22,9 @@ ApplicationWindow {
             objectName: "feedbackLabel"
             text: "第" + controller.gameNumber + "局 · " + controller.message
             Layout.fillWidth: true
+            Layout.alignment: Qt.AlignHCenter
             wrapMode: Text.WordWrap
-            font.pixelSize: 12
+            font.pixelSize: 16
             color: "#fff3db"
             horizontalAlignment: Text.AlignHCenter
         }
