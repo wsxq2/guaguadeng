@@ -47,7 +47,7 @@ python -m pip install -e .
 python -c "import guaguadeng; print(guaguadeng.__file__)"
 ```
 
-此命令只安装新包，不安装旧版或启动游戏。新界面的技术和依赖尚未确定。
+此命令只安装新包，不安装旧版或启动游戏。新界面已确定采用 PySide6 + QML / Qt Quick，界面代码及依赖配置尚未加入。
 运行测试（标准库 unittest，无额外依赖）：
 
 ```bash
@@ -58,22 +58,26 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 
 ## 使用新核心
 
-安装可编辑包后，可以用随机合法出牌运行一局（仅演示 API，不是 AI 策略）：
+安装可编辑包后，可以用随机合法出牌运行一局（采用基础随机策略，不包含智能评估）：
 
 ```python
 import random
 from guaguadeng.engine import GameEngine
 from guaguadeng.domain.state import Phase
 from guaguadeng.domain.rules import legal_plays
+from guaguadeng.domain.observation import observe
+from guaguadeng.strategies import RandomStrategy
 
 engine = GameEngine(random.Random(42))
 engine.start_next_game()
-choice_rng = random.Random(7)
+strategies = [RandomStrategy(random.Random(i)) for i in range(4)]
 while engine.snapshot().phase is Phase.PLAYING:
     state = engine.snapshot()
     player_id = state.round.next_player_id
-    choices = legal_plays(state.players[player_id].hand, state.round)
-    result = engine.submit_play(player_id, choice_rng.choice(choices))
+    observation = observe(state, player_id)
+    choices = legal_plays(observation.hand, observation.current_round)
+    chosen = strategies[player_id].choose_play(observation, choices)
+    result = engine.submit_play(player_id, chosen)
     assert result.is_valid
 
 print([(p.name, p.score) for p in engine.snapshot().players])
