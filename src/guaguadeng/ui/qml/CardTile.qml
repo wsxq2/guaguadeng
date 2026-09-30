@@ -9,8 +9,8 @@ Rectangle {
     property bool selected: false
     property bool showBorder: true
     readonly property bool compact: Window.window !== null && Window.height < 400
-    implicitWidth: compact ? 30 : 58
-    implicitHeight: (compact ? 85 : 100) - 10
+    implicitWidth: compact ? 40 : 58
+    implicitHeight: (compact ? 72 : 100) - 10
     property int fontSize: compact ? 20 : 28
     property int suitSize: compact ? 20 : 26
     radius: 6
