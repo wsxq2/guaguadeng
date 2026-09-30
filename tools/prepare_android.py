@@ -11,6 +11,6 @@ if package.exists():
 shutil.copytree(root / 'src' / 'guaguadeng', package,
                 ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
 (target / 'main.py').write_text(
-    'from guaguadeng.ui.preview import main\n\n'
+    'from guaguadeng.ui.app import main\n\n'
     'if __name__ == "__main__":\n    raise SystemExit(main())\n', encoding='utf-8')
 print(target)

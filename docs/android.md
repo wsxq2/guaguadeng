@@ -1,7 +1,8 @@
-# Android 最小验证版
+# Android 打包与真机验证
 
-目标：用同一份 Python 核心和 QML 页面验证显示卡牌、触摸选牌、调用领牌规则。
-当前页面不执行完整对局。桌面无显示测试通过，不代表 Android 真机已验证。
+当前打包入口已切换为正式牌桌 `guaguadeng.ui.app`，支持一位真人与三个随机 AI 完整对局。原验证页已完成真机验证；正式牌桌已通过无显示交互测试，仍需重新打包并在手机验收。
+
+继续使用 `python tools/build_android.py`，脚本会同步新源码与 QML。沿用 `build/android-preview` 目录和应用包名以复用构建缓存。
 
 ## 推荐：使用自动打包脚本
 
@@ -45,16 +46,16 @@
 
 ```bash
 python -m pip install -e '.[ui]'
-python -m guaguadeng.ui.preview
+python -m guaguadeng.ui.app
 ```
 
 使用已有虚拟环境，无需先安装项目：
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m guaguadeng.ui.preview
+PYTHONPATH=src .venv/bin/python -m guaguadeng.ui.app
 ```
 
-选择两张 6 后验证应通过；再选择 7 后应提示点数必须相同。
+点击开始游戏，等待轮到自己后选牌并出牌，也可使用提示选择合法牌。测试结算、下一局及结束本场；在 Pixel 7 和 Redmi 上检查横竖屏安全区域与手牌滑动。
 卡牌支持点击取消，手牌区域在窄屏时可以横向滑动。
 
 ## 准备 Android 部署目录

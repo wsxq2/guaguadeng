@@ -112,7 +112,7 @@
 
 ## 正式对局控制器
 
-`ui/controller.py` 的 `GameController` 已实现，真人固定为南侧（ID 3），其余座位使用随机策略。尚未接入正式 QML 牌桌，当前启动入口仍为交互验证页。
+`ui/controller.py` 的 `GameController` 已实现，真人固定为南侧（ID 3），其余座位使用随机策略。已接入 `qml/Table.qml`，正式入口为 `ui.app`。
 
 - QML 属性：`cards` 仅含真人手牌；`players` 仅含公开积分、剩余牌数、获牌数、庄家和行动标识；另有 `phase`、`gameNumber`、`humanTurn`、`hasSelection`、`message`。
 - 操作：`startNextGame`、`toggle`、`clear`、`hint`、`submit`、`endSession`、`newSession`。结束本场后才能重开一场，积分由引擎管理。
@@ -120,4 +120,4 @@
 - `roundPlays` 在新轮尚无人出牌时保留上轮结果，`showingPreviousRound` 标识该情况，供界面明确标注。新轮首次出牌后显示新轮。
 - 提示只选取一组合法牌，优先较少张、较小点数，不承诺最优策略。
 
-下一步实现正式 QML 牌桌并连接该控制器，再切换桌面及 Android 启动入口，进行真机验收。
+正式 QML 牌桌已实现，并切换 Android 生成入口；保留 preview 入口用于排查基础交互。界面通过安全区域、完整对局、续局和结束确认测试；下一步进行正式牌桌真机验收。

@@ -3,7 +3,7 @@
 四人纸牌游戏，使用四种花色的 1～10 点牌，共 40 张。
 游戏的完整规则见 [Rules.md](Rules.md)。
 
-项目正在重写：旧版 CLI 和 PySide6 界面已归档，新实现已完成无界面游戏核心，可通过 Python API 完成连续对局；已新增最小 QML 选牌验证页，完整游戏 GUI 尚未实现。
+项目正在重写：旧版 CLI 和 PySide6 界面已归档，新实现已完成无界面游戏核心，可通过 Python API 完成连续对局；已新增正式 QML 牌桌，支持真人对战三个随机 AI、结算和连续对局。
 旧版行为不完全符合最新规则。
 
 ## 目录
@@ -86,10 +86,10 @@ print([(p.name, p.score) for p in engine.snapshot().players])
 `engine.start_next_game()` 保留积分并轮庄；`engine.end_session()` 结束本场；
 `engine.start_session()` 开始全新一场，积分重置。接口约定见 [开发说明](docs/development.md)。
 
-## QML / Android 验证页
+## QML 牌桌 / Android
 
 ```bash
-PYTHONPATH=src python -m guaguadeng.ui.preview
+PYTHONPATH=src python -m guaguadeng.ui.app
 ```
 
-需安装 UI 可选依赖。此页面仅验证选牌和 Python 规则调用，不是完整对局界面。Android 打包准备与当前限制见 [Android 说明](docs/android.md)。目前尚未生成或真机验证 APK。
+需安装 UI 可选依赖。点击开始游戏，你位于南侧，其他三人为随机 AI；可选牌、提示、出牌、续局及结束本场。窄屏或低高度下可滚动牌桌，手牌可左右滑动。原选牌验证页仍可通过 `python -m guaguadeng.ui.preview` 启动。Android 打包见 [Android 说明](docs/android.md)；验证页已真机通过，正式牌桌尚待重新打包验收。
