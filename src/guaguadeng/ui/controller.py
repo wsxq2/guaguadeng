@@ -10,6 +10,7 @@ from ..domain.rules import calculate_score, determine_winner, legal_plays
 from ..domain.state import Phase
 from ..engine.game import GameEngine
 from ..strategies.random_strategy import RandomStrategy
+from ..strategies.greedy_strategy import GreedyStrategy
 
 
 def card_data(card):
@@ -24,7 +25,7 @@ class GameController(QObject):
     def __init__(self, parent=None, *, engine=None, strategy=None, ai_delay_ms=700, round_delay_ms=1800):
         super().__init__(parent)
         self._engine = engine if engine is not None else GameEngine()
-        self._strategy = strategy if strategy is not None else RandomStrategy()
+        self._strategy = strategy if strategy is not None else GreedyStrategy()
         self._selected = set()
         self._reviewing = False
         self._seen_rounds = 0

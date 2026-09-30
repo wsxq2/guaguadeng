@@ -112,8 +112,8 @@ ApplicationWindow {
             Button {
                 objectName: "endButton"
                 text: "结束"
-                Layout.preferredWidth: 64
-                Layout.preferredHeight: 32
+                Layout.preferredWidth: 96
+                Layout.preferredHeight: 48
                 font.pixelSize: 12
                 onClicked: endDialog.open()
             }
@@ -121,8 +121,8 @@ ApplicationWindow {
                 objectName: "clearButton"
                 visible: controller.phase === "PLAYING"
                 text: "清空"
-                Layout.preferredWidth: 64
-                Layout.preferredHeight: 32
+                Layout.preferredWidth: 96
+                Layout.preferredHeight: 48
                 font.pixelSize: 12
                 enabled: controller.humanTurn && controller.hasSelection
                 onClicked: controller.clear()
@@ -131,8 +131,8 @@ ApplicationWindow {
                 objectName: "hintButton"
                 visible: controller.phase === "PLAYING"
                 text: "提示"
-                Layout.preferredWidth: 64
-                Layout.preferredHeight: 32
+                Layout.preferredWidth: 96
+                Layout.preferredHeight: 48
                 font.pixelSize: 12
                 enabled: controller.humanTurn
                 onClicked: controller.hint()
@@ -141,8 +141,8 @@ ApplicationWindow {
                 objectName: "playButton"
                 visible: controller.phase === "PLAYING"
                 text: "出牌"
-                Layout.preferredWidth: 64
-                Layout.preferredHeight: 32
+                Layout.preferredWidth: 96
+                Layout.preferredHeight: 48
                 font.pixelSize: 12
                 enabled: controller.humanTurn && controller.hasSelection
                 onClicked: controller.submit()
@@ -151,8 +151,8 @@ ApplicationWindow {
         Button {
             objectName: "startButton"
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: 128
-                Layout.preferredHeight: 32
+            Layout.preferredWidth: 96
+                Layout.preferredHeight: 48
                 font.pixelSize: 12
             visible: controller.phase !== "PLAYING"
             enabled: !controller.reviewingRound
