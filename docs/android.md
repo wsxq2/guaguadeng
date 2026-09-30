@@ -159,3 +159,40 @@ Gradle 开头的“Java 24 support”只是版本特性介绍，不表示当前�
 - 用户已确认 Android 构建成功；不再将 SDK/NDK、wheels 或 JDK 配置列为未解决阻塞。
 - 待真机验收：安装启动、中文和花色、横竖屏、触摸与滑动、系统安全区域、后台恢复。
 - 本页面不执行完整对局，没有持续 AI 定时任务和存档；这些属于完整界面阶段。
+
+## 真机闪退：缺少 libpython3.11.so
+
+Pixel 7 和 Redmi K80 Ultra 启动均闪退，日志确认：
+
+```text
+UnsatisfiedLinkError: dlopen failed: library "libpython3.11.so" not found
+needed by libshiboken6.abi3.so
+```
+
+检查 APK 发现其中为 `libpython3.14.so`，但 Qt wheels 为 `cp311`，两者不匹配。
+生成配置中的 `requirements = python3,shiboken6,PySide6` 未固定 Python 版本，所取的 python-for-android develop 配方默认版本已变为 3.14.2。
+
+修复方案是在生成的 `buildozer.spec` 中同时固定目标和主机构建用 Python：
+
+```ini
+[app]
+requirements = python3==3.11.9,hostpython3==3.11.9,shiboken6,PySide6
+
+[buildozer]
+build_dir = .buildozer-py311
+```
+
+这里的 hostpython3 是构建过程中生成的解释器，并非要求更换当前运行工具的 Python 3.10 虚拟环境。
+新构建目录避免复用旧 3.14 产物，保留原缓存，不手动删除 SDK/NDK。
+在已有部署 recipes 和 jars 的前提下，从 `build/android-preview` 直接运行：
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+set -o pipefail
+python -m buildozer android debug 2>&1 | tee deploy-py311.log
+```
+
+不要紧接着改用 `pyside6-android-deploy` 重建，否则该版本工具会重新生成未固定 Python 的 requirements。
+这项配置修复尚待重新构建与真机验证；若当前 develop 配方不能构建 3.11，需进一步固定兼容的 python-for-android 版本，不能把库文件改名伪装成 3.11。
+另外 `qml_files` 为空及 QML 插件收集仍需检查；解决本次链接错误不保证后续 QML 启动已通过。
