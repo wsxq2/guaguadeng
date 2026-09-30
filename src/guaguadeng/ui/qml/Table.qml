@@ -168,7 +168,6 @@ ApplicationWindow {
             PlayerPanel {
                 objectName: "selfPlayer"
                 player: controller.players[3]
-                Layout.preferredWidth: 92
                 Layout.alignment: Qt.AlignVCenter
             }
                 Flickable {
@@ -178,14 +177,14 @@ ApplicationWindow {
                     Layout.preferredHeight: window.height < 400 ? 72 : 100
                     Layout.minimumHeight: Layout.preferredHeight
                     Layout.maximumHeight: Layout.preferredHeight
-                    contentWidth: handRow.width
+                    contentWidth: handRow.x + handRow.width
                     contentHeight: height
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
                     Row {
                         id: handRow
                         spacing: 6
-                        x: Math.max(0, (hand.width - width) / 2)
+                        x: 12
                         Repeater {
                             model: controller.cards
                             delegate: Rectangle {

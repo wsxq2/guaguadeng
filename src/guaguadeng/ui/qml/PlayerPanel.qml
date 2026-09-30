@@ -4,7 +4,7 @@ import QtQuick.Controls
 Rectangle {
     id: panel
     required property var player
-    implicitWidth: 118
+    implicitWidth: 150
     implicitHeight: 88
     radius: 12
     color: player.active ? "#286653" : "#193f37"
