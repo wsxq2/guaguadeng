@@ -49,6 +49,8 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 
 ## 可选 UI 测试
 
-`ui/test_preview.py` 检查选牌规则桥接及 QML 在横竖屏尺寸下加载。需要安装 `.[ui]`；无 PySide6 时跳过这两项，不影响核心测试。测试使用 offscreen 和软件渲染，不代替 Android 真机触摸与视觉验收。
+`ui/test_preview.py` 检查选牌规则桥接及 QML 在横竖屏尺寸下加载。需要安装 `.[ui]`；无 PySide6 时跳过 UI 测试，不影响核心测试。测试使用 offscreen 和软件渲染，不代替 Android 真机触摸与视觉验收。
 
 - `tools/test_build_android.py`：代理首次设置、已有配置保留与备份、拒绝含凭据 URL、构建版本固定及重复执行一致性。
+
+- `ui/test_controller.py`：真人非法出牌、公开视图、提示、定时 AI 完整对局、结算续局，以及结束后取消 AI。

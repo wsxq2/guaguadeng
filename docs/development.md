@@ -107,4 +107,17 @@
 
 ## 移动端验证优先
 
-目标增加 Android 手机，先验证 QML 显示、触摸和 Python 规则桥接，再实现完整牌桌。页面和工具链状态见 [Android 说明](android.md)。当前桌面无显示测试通过，APK 构建与真机验证尚未完成。
+目标增加 Android 手机，先验证 QML 显示、触摸和 Python 规则桥接，再实现完整牌桌。页面和工具链状态见 [Android 说明](android.md)。当前交互验证页已完成 APK 构建与真机验证，包括横竖屏、安全区域及验证反馈。
+
+
+## 正式对局控制器
+
+`ui/controller.py` 的 `GameController` 已实现，真人固定为南侧（ID 3），其余座位使用随机策略。尚未接入正式 QML 牌桌，当前启动入口仍为交互验证页。
+
+- QML 属性：`cards` 仅含真人手牌；`players` 仅含公开积分、剩余牌数、获牌数、庄家和行动标识；另有 `phase`、`gameNumber`、`humanTurn`、`hasSelection`、`message`。
+- 操作：`startNextGame`、`toggle`、`clear`、`hint`、`submit`、`endSession`、`newSession`。结束本场后才能重开一场，积分由引擎管理。
+- 单次 QTimer 默认间隔 700 毫秒，每次执行一个 AI 动作；结束本场即停止计时。AI 仅接收自身观察及合法候选。
+- `roundPlays` 在新轮尚无人出牌时保留上轮结果，`showingPreviousRound` 标识该情况，供界面明确标注。新轮首次出牌后显示新轮。
+- 提示只选取一组合法牌，优先较少张、较小点数，不承诺最优策略。
+
+下一步实现正式 QML 牌桌并连接该控制器，再切换桌面及 Android 启动入口，进行真机验收。
