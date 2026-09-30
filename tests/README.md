@@ -31,3 +31,18 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 - 随机发牌和完整对局测试使用可复现的随机源。
 
 实施顺序和模型职责见 [开发说明](../docs/development.md)。
+
+## 文件组织
+
+- `domain/test_card.py`：卡牌与牌组。
+- `domain/test_lead.py`：领牌验证（原 `test_rules.py`）。
+- `domain/test_follow.py`：跟牌、管牌、合法动作枚举，以及严格比较的关联案例。
+- `domain/test_scoring.py`：判胜与计分。
+- `domain/test_state.py`：轮内状态派生属性。
+- `domain/test_observation.py`：公开观察信息和隐藏手牌隔离。
+- `domain/helpers.py`：共享的测试卡牌与轮记录构造函数。
+- `strategies/test_random_strategy.py`：随机策略选择行为。
+- `engine/test_game.py`：引擎生命周期与状态一致性。
+- `engine/test_strategy_game.py`：多个策略与引擎协作的完整对局。
+
+按行为主题拆分，不要求测试文件与源码文件一一对应。

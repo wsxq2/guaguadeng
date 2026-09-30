@@ -1,24 +1,10 @@
-"""跟牌、管牌、判胜与计分的行为案例。"""
+"""跟牌、管牌及合法动作枚举。"""
 import unittest
 from itertools import combinations
 from guaguadeng.domain.card import Card, Suit
 from guaguadeng.domain.state import Play, RoundState
-from guaguadeng.domain.rules import validate_play, legal_plays, determine_winner, calculate_score
-
-
-def cards(*values):
-    used = {}
-    result = []
-    for value in values:
-        index = used.get(value, 0)
-        result.append(Card(value, list(Suit)[index]))
-        used[value] = index + 1
-    return tuple(result)
-
-
-def round_with(*plays):
-    return RoundState(0, tuple(Play(i, cards(*values)) for i, values in enumerate(plays)))
-
+from guaguadeng.domain.rules import validate_play, legal_plays, determine_winner
+from .helpers import cards, round_with
 
 class FollowTests(unittest.TestCase):
     def test_rule_examples(self):
@@ -69,16 +55,6 @@ class FollowTests(unittest.TestCase):
         self.assertFalse(validate_play(hand, hand[:1], full).is_valid)
         self.assertEqual(legal_plays(hand,full), ())
 
-    def test_winner_ignores_mixed_and_keeps_earliest_tie(self):
-        self.assertEqual(determine_winner(round_with((2,2),(10,1),(9,3),(8,4))),0)
-        self.assertEqual(determine_winner(round_with((9,),(9,),(8,),(2,))),0)
-        self.assertEqual(determine_winner(round_with((2,),(7,),(8,),(9,))),3)
-        self.assertIsNone(determine_winner(RoundState(0)))
-
-    def test_scores(self):
-        for count, score in ((0,-10),(4,6),(10,30)):
-            self.assertEqual(calculate_score(count),score)
-
     def test_no_beating_play_allows_any_complete_group_at_every_size(self):
         for count in range(1,5):
             for previous in (1,2,3):
@@ -118,13 +94,3 @@ class FollowTests(unittest.TestCase):
         self.assertFalse(validate_play(hand,hand[:1],state).is_valid)
         tie = RoundState(2,(Play(2,(Card(9,Suit.CLUBS),)),Play(3,(Card(9,Suit.SPADES),))))
         self.assertEqual(determine_winner(tie),2)
-
-    def test_next_player_and_complete_round_with_rotated_leader(self):
-        state = RoundState(3)
-        self.assertEqual(state.next_player_id,3)
-        plays = []
-        for i in range(4):
-            plays.append(Play((3+i)%4,cards(i+1)))
-            state = RoundState(3,tuple(plays))
-            self.assertEqual(state.next_player_id,None if i==3 else (4+i)%4)
-        self.assertTrue(state.is_complete)

@@ -1,12 +1,10 @@
+"""公开观察信息与隐藏手牌隔离。"""
 import random
 import unittest
-from dataclasses import FrozenInstanceError, replace
-
 from guaguadeng.domain.observation import observe
 from guaguadeng.domain.rules import legal_plays
-from guaguadeng.domain.state import Phase
 from guaguadeng.engine import GameEngine
-from guaguadeng.strategies import RandomStrategy, Strategy
+from dataclasses import FrozenInstanceError, replace
 
 
 class ObservationTests(unittest.TestCase):
@@ -57,44 +55,3 @@ class ObservationTests(unittest.TestCase):
         for who in (-1, 4, True, '0', None):
             with self.subTest(who=who), self.assertRaises(ValueError):
                 observe(self.engine.snapshot(), who)
-
-
-class StrategyTests(unittest.TestCase):
-    def test_legal_reproducible_selection_without_mutation(self):
-        engine = GameEngine(random.Random(4))
-        engine.start_next_game()
-        state = engine.snapshot()
-        obs = observe(state, state.round.next_player_id)
-        choices = legal_plays(obs.hand, obs.current_round)
-        a: Strategy = RandomStrategy(random.Random(8))
-        b: Strategy = RandomStrategy(random.Random(8))
-        sequence = [a.choose_play(obs, choices) for _ in range(30)]
-        self.assertEqual(sequence, [b.choose_play(obs, choices) for _ in range(30)])
-        self.assertTrue(all(c in choices for c in sequence))
-        self.assertEqual(obs, observe(state, obs.player_id))
-        self.assertEqual(choices, legal_plays(obs.hand, obs.current_round))
-        self.assertEqual(a.choose_play(obs, (choices[0],)), choices[0])
-        with self.assertRaises(ValueError):
-            a.choose_play(obs, ())
-
-    def test_four_strategies_complete_two_games_and_history_resets(self):
-        for seed in range(5):
-            engine = GameEngine(random.Random(seed))
-            strategies = [RandomStrategy(random.Random(seed * 4 + i)) for i in range(4)]
-            for game in range(2):
-                engine.start_next_game()
-                self.assertEqual(observe(engine.snapshot(), 0).completed_rounds, ())
-                moves = 0
-                while engine.snapshot().phase is Phase.PLAYING:
-                    state = engine.snapshot()
-                    who = state.round.next_player_id
-                    obs = observe(state, who)
-                    choices = legal_plays(obs.hand, obs.current_round)
-                    chosen = strategies[who].choose_play(obs, choices)
-                    self.assertTrue(engine.submit_play(who, chosen).is_valid)
-                    moves += 1
-                    self.assertLessEqual(moves, 40)
-                end = observe(engine.snapshot(), 0)
-                self.assertIsNone(end.current_round)
-                self.assertEqual(sum(p.score for p in end.players), 400)
-                self.assertEqual(sum(len(p.won_cards) for p in end.players), 10)
