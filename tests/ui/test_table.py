@@ -27,7 +27,7 @@ class TableTests(unittest.TestCase):
         from guaguadeng.ui import app
 
         c = GameController(engine=GameEngine(random.Random(0)),
-                           strategy=RandomStrategy(random.Random(1)), ai_delay_ms=1)
+                           strategy=RandomStrategy(random.Random(1)), ai_delay_ms=1, round_delay_ms=1)
         engine = QQmlApplicationEngine()
         warnings = []
         engine.warnings.connect(lambda errors: warnings.extend(str(e) for e in errors))
@@ -55,13 +55,25 @@ class TableTests(unittest.TestCase):
                 window.setProperty('bottomPadding', 32)
                 window.setProperty('leftPadding', 24)
                 QTest.qWait(30)
-                for name in ('playButton', 'hintButton', 'clearButton', 'feedbackLabel'):
+                for name in ('playButton', 'hintButton', 'clearButton', 'feedbackLabel', 'handView'):
                     item = window.findChild(QQuickItem, name)
                     pos = item.mapToScene(QPointF(0,0))
                     self.assertGreaterEqual(pos.x(), 24)
                     self.assertGreaterEqual(pos.y(), 28)
                     self.assertLessEqual(pos.x()+item.width(), width)
                     self.assertLessEqual(pos.y()+item.height(), height-32)
+                hand = window.findChild(QQuickItem, 'handView')
+                button = window.findChild(QQuickItem, 'playButton')
+                self.assertLessEqual(button.mapToScene(QPointF(0, button.height())).y(),
+                                     hand.mapToScene(QPointF(0, 0)).y())
+                self.assertLessEqual(button.height(), 32)
+                north = window.findChild(QQuickItem, 'northPlayer')
+                table = window.findChild(QQuickItem, 'tableArea')
+                self.assertAlmostEqual(north.x() + north.width()/2, table.width()/2, delta=1)
+                self.assertEqual(north.y(), 0)
+                myself = window.findChild(QQuickItem, 'selfPlayer')
+                self.assertLessEqual(myself.mapToScene(QPointF(myself.width(), 0)).x(),
+                                     hand.mapToScene(QPointF(0, 0)).x())
             window.setWidth(960)
             window.setHeight(640)
             for _ in range(41):

@@ -6,14 +6,14 @@ from PySide6.QtCore import QObject, Property, QTimer, Signal, Slot
 
 from ..domain.card import Suit
 from ..domain.observation import observe
-from ..domain.rules import calculate_score, legal_plays
+from ..domain.rules import calculate_score, determine_winner, legal_plays
 from ..domain.state import Phase
 from ..engine.game import GameEngine
 from ..strategies.random_strategy import RandomStrategy
 
 
 def card_data(card):
-    return dict(value=str(card.value), suit=card.suit.value,
+    return dict(value=str(card.value), suit=card.suit.value, suitName=card.suit.name,
                 red=card.suit in (Suit.HEARTS, Suit.DIAMONDS))
 
 
@@ -21,11 +21,17 @@ class GameController(QObject):
     changed = Signal()
     HUMAN_ID = 3
 
-    def __init__(self, parent=None, *, engine=None, strategy=None, ai_delay_ms=700):
+    def __init__(self, parent=None, *, engine=None, strategy=None, ai_delay_ms=700, round_delay_ms=1800):
         super().__init__(parent)
         self._engine = engine if engine is not None else GameEngine()
         self._strategy = strategy if strategy is not None else RandomStrategy()
         self._selected = set()
+        self._reviewing = False
+        self._seen_rounds = 0
+        self._review_timer = QTimer(self)
+        self._review_timer.setSingleShot(True)
+        self._review_timer.setInterval(max(1, round_delay_ms))
+        self._review_timer.timeout.connect(self._finish_review)
         self._message = '点击开始，进行一局游戏'
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
@@ -47,7 +53,7 @@ class GameController(QObject):
     @Property(bool, notify=changed)
     def humanTurn(self):
         state = self._engine.snapshot()
-        return (state.phase is Phase.PLAYING and
+        return (not self._reviewing and state.phase is Phase.PLAYING and
                 state.round.next_player_id == self.HUMAN_ID)
 
     @Property(bool, notify=changed)
@@ -67,7 +73,7 @@ class GameController(QObject):
     def players(self):
         state = self._engine.snapshot()
         view = observe(state, self.HUMAN_ID)
-        current = state.round.next_player_id if state.phase is Phase.PLAYING else None
+        current = state.round.next_player_id if state.phase is Phase.PLAYING and not self._reviewing else None
         return [dict(id=p.id, name='你' if p.id == self.HUMAN_ID else p.name,
                      handCount=p.hand_count, score=p.score, wonCount=len(p.won_cards),
                      gameScore=calculate_score(len(p.won_cards)) if state.phase is Phase.FINISHED else 0,
@@ -89,9 +95,35 @@ class GameController(QObject):
         state = self._engine.snapshot()
         return bool(state.completed_rounds and (state.round is None or not state.round.plays))
 
+    @Property(bool, notify=changed)
+    def reviewingRound(self):
+        return self._reviewing
+
+    @Property('QVariantList', notify=changed)
+    def roundAwards(self):
+        state = self._engine.snapshot()
+        if not state.completed_rounds:
+            return []
+        last = state.completed_rounds[-1]
+        winner = determine_winner(last)
+        return [dict(playerId=p.player_id, winner=p.player_id == winner,
+                     gained=len(p.cards) if p.player_id == winner else 0)
+                for p in last.plays]
+
+    def _finish_review(self):
+        self._reviewing = False
+        self._advance()
+
     def _advance(self):
         self._timer.stop()
         state = self._engine.snapshot()
+        if len(state.completed_rounds) > self._seen_rounds:
+            self._seen_rounds = len(state.completed_rounds)
+            self._reviewing = True
+            self._message = '本轮结束，查看各玩家获牌情况'
+            self._review_timer.start()
+            self.changed.emit()
+            return
         if state.phase is Phase.PLAYING:
             self._message = '轮到你出牌' if self.humanTurn else '等待 AI 出牌'
             if not self.humanTurn:
@@ -104,6 +136,9 @@ class GameController(QObject):
     def startNextGame(self):
         if self._engine.snapshot().phase not in (Phase.READY, Phase.FINISHED):
             return
+        if self._reviewing:
+            return
+        self._seen_rounds = 0
         self._engine.start_next_game()
         self._selected.clear()
         self._advance()
@@ -122,6 +157,8 @@ class GameController(QObject):
     @Slot()
     def endSession(self):
         self._timer.stop()
+        self._review_timer.stop()
+        self._reviewing = False
         self._engine.end_session()
         self._selected.clear()
         self._message = '本场已结束，未完成局不计分'
@@ -167,7 +204,7 @@ class GameController(QObject):
 
     def _play_ai(self):
         state = self._engine.snapshot()
-        if state.phase is not Phase.PLAYING or self.humanTurn:
+        if self._reviewing or state.phase is not Phase.PLAYING or self.humanTurn:
             return
         player_id = state.round.next_player_id
         view = observe(state, player_id)

@@ -56,3 +56,5 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 - `ui/test_controller.py`：真人非法出牌、公开视图、提示、定时 AI 完整对局、结算续局，以及结束后取消 AI。
 
 - `ui/test_table.py`：正式 QML 牌桌加载、安全区域、按钮交互完整对局、续局、结束确认及重开。
+
+正式牌桌回归额外覆盖固定手牌安全区域、轮末停留期间禁止操作，以及胜者获牌和累计获牌一致性。

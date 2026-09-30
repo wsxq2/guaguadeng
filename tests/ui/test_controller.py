@@ -20,14 +20,14 @@ class ControllerTests(unittest.TestCase):
         from guaguadeng.strategies.random_strategy import RandomStrategy
         controller = GameController(engine=GameEngine(random.Random(0)),
                                     strategy=RandomStrategy(random.Random(1)),
-                                    ai_delay_ms=delay)
+                                    ai_delay_ms=delay, round_delay_ms=1)
         self.addCleanup(controller.endSession)
         return controller
 
     def wait_for_human(self, controller):
         from PySide6.QtTest import QTest
         for _ in range(200):
-            if controller.humanTurn or controller.phase != 'PLAYING':
+            if not controller.reviewingRound and (controller.humanTurn or controller.phase != 'PLAYING'):
                 return
             QTest.qWait(2)
         self.fail('AI 未能交还行动权')
@@ -64,6 +64,7 @@ class ControllerTests(unittest.TestCase):
         self.assertTrue(all(p['handCount'] == 0 for p in c.players))
         self.assertEqual(len(c.roundPlays), 4)
         self.assertEqual(sum(p['gameScore'] for p in c.players), 0)
+        self.wait_for_human(c)
         c.startNextGame()
         self.assertEqual(c.gameNumber, 2)
         self.assertEqual(next(p['id'] for p in c.players if p['dealer']), (dealer + 1) % 4)
@@ -87,3 +88,36 @@ class ControllerTests(unittest.TestCase):
         c.newSession()
         self.assertEqual(c.phase, 'READY')
         self.assertEqual(c.gameNumber, 0)
+
+    def test_round_review_awards_and_blocks_input(self):
+        from PySide6.QtTest import QTest
+        from guaguadeng.engine.game import GameEngine
+        from guaguadeng.ui.controller import GameController
+        from guaguadeng.strategies.random_strategy import RandomStrategy
+        c = GameController(engine=GameEngine(random.Random(0)),
+                           strategy=RandomStrategy(random.Random(1)),
+                           ai_delay_ms=1, round_delay_ms=100)
+        self.addCleanup(c.endSession)
+        c.startNextGame()
+        for _ in range(200):
+            if c.reviewingRound:
+                break
+            if c.humanTurn:
+                c.hint()
+                c.submit()
+            QTest.qWait(2)
+        self.assertTrue(c.reviewingRound)
+        self.assertFalse(c.humanTurn)
+        awards = c.roundAwards
+        self.assertEqual(len(awards), 4)
+        self.assertEqual(sum(a['winner'] for a in awards), 1)
+        self.assertEqual(sum(a['gained'] for a in awards), len(c.roundPlays[0]['cards']))
+        for a in awards:
+            self.assertEqual(c.players[a['playerId']]['wonCount'], a['gained'])
+        before = c.cards
+        c.toggle(0)
+        c.submit()
+        self.assertEqual(c.cards, before)
+        self.assertTrue(all(not p['active'] for p in c.players))
+        QTest.qWait(120)
+        self.assertFalse(c.reviewingRound)

@@ -116,8 +116,10 @@
 
 - QML 属性：`cards` 仅含真人手牌；`players` 仅含公开积分、剩余牌数、获牌数、庄家和行动标识；另有 `phase`、`gameNumber`、`humanTurn`、`hasSelection`、`message`。
 - 操作：`startNextGame`、`toggle`、`clear`、`hint`、`submit`、`endSession`、`newSession`。结束本场后才能重开一场，积分由引擎管理。
-- 单次 QTimer 默认间隔 700 毫秒，每次执行一个 AI 动作；结束本场即停止计时。AI 仅接收自身观察及合法候选。
+- 单次 QTimer 默认间隔 700 毫秒，每次执行一个 AI 动作；另一个单次定时器在轮末停留 1800 毫秒，期间禁止出牌。结束本场停止两个定时器。AI 仅接收自身观察及合法候选。
 - `roundPlays` 在新轮尚无人出牌时保留上轮结果，`showingPreviousRound` 标识该情况，供界面明确标注。新轮首次出牌后显示新轮。
 - 提示只选取一组合法牌，优先较少张、较小点数，不承诺最优策略。
 
 正式 QML 牌桌已实现，并切换 Android 生成入口；保留 preview 入口用于排查基础交互。界面通过安全区域、完整对局、续局和结束确认测试；下一步进行正式牌桌真机验收。
+
+轮末接口：`reviewingRound` 标识结算停留，`roundAwards` 提供上一完成轮四人的 `playerId`、`winner` 和 `gained`。玩家面板的 `wonCount` 为本局累计获牌数。
