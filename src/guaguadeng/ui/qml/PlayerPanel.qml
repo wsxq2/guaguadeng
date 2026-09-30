@@ -5,7 +5,7 @@ Rectangle {
     id: panel
     required property var player
     implicitWidth: 150
-    implicitHeight: 88
+    implicitHeight: 120
     radius: 12
     color: player.active ? "#286653" : "#193f37"
     border.color: player.active ? "#efca7b" : "#4d7162"
@@ -32,7 +32,7 @@ Rectangle {
         Flickable {
             objectName: "wonCardsView"
             width: parent.width
-            height: 22
+            height: 36
             contentWidth: wonRow.width
             contentHeight: height
             clip: true
@@ -43,21 +43,15 @@ Rectangle {
                 spacing: 3
                 Repeater {
                     model: panel.player.wonCards
-                    delegate: Rectangle {
+                    delegate: CardTile {
                         required property var modelData
-                        width: 28
-                        height: 22
+                        card: modelData
+                        width: 22
+                        height: 36
                         radius: 3
-                        color: "#fff8e8"
-                        Row {
-                            anchors.centerIn: parent
-                            Text {
-                                text: modelData.value
-                                font.pixelSize: 12
-                                color: modelData.red ? "#b52c37" : "#18382e"
-                            }
-                            SuitIcon { suitName: modelData.suitName; width: 12; height: 16 }
-                        }
+                        showBorder: false
+                        fontSize: 12
+                        suitSize: 12
                     }
                 }
             }

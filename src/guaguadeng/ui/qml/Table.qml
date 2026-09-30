@@ -187,29 +187,13 @@ ApplicationWindow {
                         x: 12
                         Repeater {
                             model: controller.cards
-                            delegate: Rectangle {
+                            delegate: CardTile {
                                 required property var modelData
                                 objectName: "handCard" + modelData.index
-                                width: window.height < 400 ? 48 : 58
-                                height: hand.height - 10
+                                card: modelData
                                 y: modelData.selected ? 0 : 10
                                 radius: 8
-                                color: modelData.selected ? "#ffe2a0" : "#fff8e8"
-                                border.color: modelData.selected ? "#e8b54d" : "#b2c4b7"
-                                border.width: modelData.selected ? 3 : 1
-                                Column {
-                                    anchors.centerIn: parent
-                                    Text {
-                                        text: modelData.value
-                                        font.pixelSize: window.height < 400 ? 20 : 28
-                                        color: modelData.red ? "#b52c37" : "#18382e"
-                                    }
-                                    SuitIcon {
-                                        suitName: modelData.suitName
-                                        width: window.height < 400 ? 20 : 26
-                                        height: width
-                                    }
-                                }
+                                selected: modelData.selected
                                 TapHandler {
                                     enabled: controller.humanTurn
                                     onTapped: controller.toggle(modelData.index)

@@ -10,18 +10,14 @@ Column {
                         ? controller.roundAwards.find(a => a.playerId === playerId) : null
     spacing: 2
     Row {
-        spacing: 3
+        spacing: 4
         Repeater {
             model: root.play ? root.play.cards : []
-            delegate: Rectangle {
+            delegate: CardTile {
                 required property var modelData
-                width: 28; height: 23; radius: 3
-                color: "#fff8e8"
-                Row {
-                    anchors.centerIn: parent
-                    Text { text: modelData.value; font.pixelSize: 12; color: modelData.red ? "#b52c37" : "#18382e" }
-                    SuitIcon { suitName: modelData.suitName; width: 12; height: 16 }
-                }
+                card: modelData
+                radius: 4
+                showBorder: false
             }
         }
     }
