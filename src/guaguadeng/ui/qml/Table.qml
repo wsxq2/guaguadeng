@@ -18,16 +18,6 @@ ApplicationWindow {
         anchors.fill: parent
         anchors.margins: 6
         spacing: 3
-        Label {
-            objectName: "feedbackLabel"
-            text: "第" + controller.gameNumber + "局 · " + controller.message
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignHCenter
-            wrapMode: Text.WordWrap
-            font.pixelSize: 16
-            color: "#fff3db"
-            horizontalAlignment: Text.AlignHCenter
-        }
         Item {
             id: table
             objectName: "tableArea"
@@ -108,6 +98,16 @@ ApplicationWindow {
                 }
             }
         }
+        Label {
+            objectName: "feedbackLabel"
+            text: "第" + controller.gameNumber + "局 · " + controller.message
+            Layout.fillWidth: true
+            Layout.alignment: Qt.AlignHCenter
+            wrapMode: Text.WordWrap
+            font.pixelSize: 14
+            color: "#fff3db"
+            horizontalAlignment: Text.AlignHCenter
+        }
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
             spacing: 4
@@ -177,6 +177,7 @@ ApplicationWindow {
                     id: hand
                     objectName: "handView"
                     Layout.fillWidth: true
+                    Layout.fillHeight: true
                     Layout.preferredHeight: window.height < 400 ? 72 : 100
                     Layout.minimumHeight: Layout.preferredHeight
                     Layout.maximumHeight: Layout.preferredHeight
