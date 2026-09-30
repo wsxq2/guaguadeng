@@ -76,6 +76,7 @@ class GameController(QObject):
         current = state.round.next_player_id if state.phase is Phase.PLAYING and not self._reviewing else None
         return [dict(id=p.id, name='你' if p.id == self.HUMAN_ID else p.name,
                      handCount=p.hand_count, score=p.score, wonCount=len(p.won_cards),
+                     wonCards=[card_data(c) for c in p.won_cards],
                      gameScore=calculate_score(len(p.won_cards)) if state.phase is Phase.FINISHED else 0,
                      dealer=p.id == view.dealer_id, active=p.id == current)
                 for p in view.players]

@@ -67,6 +67,7 @@ class ControllerTests(unittest.TestCase):
         self.wait_for_human(c)
         c.startNextGame()
         self.assertEqual(c.gameNumber, 2)
+        self.assertTrue(all(not p["wonCards"] for p in c.players))
         self.assertEqual(next(p['id'] for p in c.players if p['dealer']), (dealer + 1) % 4)
 
     def test_end_cancels_pending_ai_and_preserves_scores(self):
@@ -114,6 +115,9 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(sum(a['gained'] for a in awards), len(c.roundPlays[0]['cards']))
         for a in awards:
             self.assertEqual(c.players[a['playerId']]['wonCount'], a['gained'])
+            won = c.players[a['playerId']]['wonCards']
+            play = next(p for p in c.roundPlays if p['playerId'] == a['playerId'])
+            self.assertEqual(won, play['cards'] if a['winner'] else [])
         before = c.cards
         c.toggle(0)
         c.submit()
